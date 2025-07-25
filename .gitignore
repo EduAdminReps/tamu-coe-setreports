@@ -1,6 +1,15 @@
 GENAI_Credentials/
 *.csv
-OIEE_Evaluations_Raw/
+AEFIS_Evaluations_Processed
+AEFIS_Evaluations_Raw
+ARGOS_Grades_Compressed
+ARGOS_Grades_Raw
+DATA_Evaluations
+DATA_Reports
+GENAI
+OIEE_Comments_Processed/
+OIEE_Comments_Raw/
 OIEE_Evaluations_Processed/
+OIEE_Evaluations_Raw/
 ASSESSMENT_Processed/
 NAMES-Course-Bind.csv
