@@ -1,0 +1,6 @@
+GENAI_Credentials/
+*.csv
+OIEE_Evaluations_Raw/
+OIEE_Evaluations_Processed/
+ASSESSMENT_Processed/
+NAMES-Course-Bind.csv
