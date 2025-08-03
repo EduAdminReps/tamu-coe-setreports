@@ -168,7 +168,7 @@ term_data_list = [
 ]
 # GENAI terms
 term_genai_list = [
-    '202423', '202511'
+    '202431', '202511'
 ]
 
 # This list determines which instructors will be included in the report.
@@ -389,9 +389,13 @@ for dept in dept_list:
                         summary_text = str(row['Deanonymized']) if pd.notna(row['Deanonymized']) else ''
                         if summary_text:
                             ai_list.append(f"<b>{course}</b> ({row['Term']}): {summary_text}")
-            if ai_list:
+            if ai_flag:
+                if any(len(s) > 20 for s in ai_list):
+                    subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>", styles["Heading3"])
+                    individual_elements.append(subsubsection_title)
                 for ai_text in ai_list:
-                    print(ai_text)
+                    if len(ai_text) > 20:
+                        individual_elements.append(Paragraph(ai_text, styles["Normal"]))
 
             # DataFrame: Concatenate avg row to instructor report dataframe
             if df_instructor_report.empty:
