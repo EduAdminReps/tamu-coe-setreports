@@ -168,7 +168,7 @@ term_data_list = [
 ]
 # GENAI terms
 term_genai_list = [
-    '202431', '202511'
+    '202331', '202411', '202431', '202511'
 ]
 
 # This list determines which instructors will be included in the report.
@@ -183,7 +183,7 @@ college_id = 'EN'  # Engineering College ID
 question_num = [3, 4, 5, 7, 8, 9]
 
 # FLAGS
-ai_flag = False
+ai_flag = True
 
 # Initialize an empty list to store DataFrames
 dataframes = []
@@ -264,7 +264,7 @@ report_columns_stylized = ['Course', 'Term'] + [VerticalText(i) for i in ['Enrol
 # The Promotion DataFrame
 # To get individual reports
 # Needs work
-faculty_flag = False
+faculty_flag = True
 if faculty_flag:
     faculty_uin = [000000000]
     #
@@ -389,13 +389,9 @@ for dept in dept_list:
                         summary_text = str(row['Deanonymized']) if pd.notna(row['Deanonymized']) else ''
                         if summary_text:
                             ai_list.append(f"<b>{course}</b> ({row['Term']}): {summary_text}")
-            if ai_flag:
-                if any(len(s) > 20 for s in ai_list):
-                    subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>", styles["Heading3"])
-                    individual_elements.append(subsubsection_title)
+            if ai_list:
                 for ai_text in ai_list:
-                    if len(ai_text) > 20:
-                        individual_elements.append(Paragraph(ai_text, styles["Normal"]))
+                    print(ai_text)
 
             # DataFrame: Concatenate avg row to instructor report dataframe
             if df_instructor_report.empty:
@@ -609,13 +605,13 @@ for dept in dept_list:
                 individual_elements.append(table)
 
                 if ai_flag:
-                    subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>",
-                                                    styles["Heading3"])
-                    individual_elements.append(subsubsection_title)
+                    if any(len(s) > 20 for s in ai_list):
+                        subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>",
+                                                        styles["Heading3"])
+                        individual_elements.append(subsubsection_title)
                     for ai_text in ai_list:
                         if len(ai_text) > 20:
                             individual_elements.append(Paragraph(ai_text, styles["Normal"]))
-
 
                 individual_elements.append(PageBreak())
 
