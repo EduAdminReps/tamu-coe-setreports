@@ -27,7 +27,7 @@ dept_list = [
     'MEEN', 'MSEN', 'MTDE',
     'NUEN', 'OCEN', 'PETE'
 ]
-# dept_list = ['AERO']
+# dept_list = ['BAEN']
 
 # List of Terms
 term_list = [
@@ -42,7 +42,7 @@ for term in term_list:
     print('Term: ' + term)
 
     # Read the OIEE data into a DataFrame
-    oiee_file = Path('OIEE_Evaluations_Processed/OIEE-Evaluations-EN-' + term + '_processed.csv')
+    oiee_file = Path(f"OIEE_Evaluations_Processed/OIEE-Evaluations-{college_id}-{term}_processed.csv")
     # Check if the file exists
     if oiee_file.exists():
         # Load the file into a DataFrame
