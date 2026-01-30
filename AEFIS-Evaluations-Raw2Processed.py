@@ -27,6 +27,8 @@ from pathlib import Path
 import pandas as pd
 import glob, sys
 
+from config import QUESTIONS_MAX, PATHS, map_course_level
+
 ########################################################################################################################
 
 
@@ -45,7 +47,7 @@ except Exception as e:
 NameBind_merge_columns = ['LastName', 'FirstName', 'Dept', 'Instructor', 'FullName']
 
 # Ensure output directory for missing emails exists
-Path('ASSESSMENT_Processed').mkdir(parents=True, exist_ok=True)
+Path(PATHS['assessment_processed']).mkdir(parents=True, exist_ok=True)
 
 # List of standard AEFIS questions
 size = 14 # Number of questions + dummy question at index 0
@@ -89,7 +91,7 @@ questions[12] = 'Expected Grade in this Course'
 # Scale (1 - 8) 1 = A 8 = U
 # Type: Multi-Choice, Single Answer
 questions[13] = 'Please provide any general comments about this course.'
-questions_max = [0, 4, 3, 4, 4, 4, 6, 6, 5, 3, 3, 2, 8, 0] # Leading 0 is a dummy value
+questions_max = QUESTIONS_MAX  # Scale values from centralized config
 
 # Questions to be included in the processed CSV file
 chosen_questions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -110,23 +112,7 @@ dfs_columns = dfs_columns_course + dfs_columns_numeric
 # Define a mapping dictionary and update term
 replacement_dict = {'Spring': '11', 'Summer': '21', 'Fall': '31'}
 
-# Define a map from course number to course level
-def map_course_level(course_level):
-    course_level_string = str(course_level)
-    course_leading_digit = course_level_string[0]
-    if course_leading_digit == '1':
-        level = 'one'
-    elif course_leading_digit == '2':
-        level = 'two'
-    elif course_leading_digit == '3':
-        level = 'three'
-    elif course_leading_digit == '4':
-        level = 'four'
-    else:
-        level = 'grad'
-    return level
-
-# List of Engineering Departments and Units
+# List of AEFIS-processed Engineering Departments (subset)
 dept_list = ['AERO', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
              'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE']
 
@@ -136,16 +122,19 @@ dept_list = ['AERO', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
 missing_df = pd.DataFrame(columns=['Instructor', 'LastName', 'FirstName', 'FullName', 'Email', 'Dept', 'Term'])
 
 # Using index dept for 'Dept'
-# The files to be process should be in the directory 'AEFIS_Evaluations_Raw/'
-# The files in the directory 'AEFIS_Evaluations_Raw/' + dept + '/' are archived
+# The files to be process should be in the directory PATHS['aefis_raw']
+# The files in the directory PATHS['aefis_raw'] + dept + '/' are archived
+aefis_raw_path = PATHS['aefis_raw']
+aefis_processed_path = PATHS['aefis_processed']
+
 for dept in dept_list:
     print('Department: ' + dept)
     # Ensure department output directory exists
-    Path(f'AEFIS_Evaluations_Processed/{dept}').mkdir(parents=True, exist_ok=True)
-    # List all departmental CSV files in directory 'AEFIS_Evaluations_Raw/'
-    csv_files = glob.glob('AEFIS_Evaluations_Raw/' + dept +'*.csv') # Process new files
+    Path(f'{aefis_processed_path}/{dept}').mkdir(parents=True, exist_ok=True)
+    # List all departmental CSV files in directory
+    csv_files = glob.glob(f'{aefis_raw_path}/{dept}*.csv')  # Process new files
     # UNCOMMENT BELOW to process archived files
-    # csv_files = glob.glob('AEFIS_Evaluations_Raw/' + dept + '/' + dept + '*.csv')
+    # csv_files = glob.glob(f'{aefis_raw_path}/{dept}/{dept}*.csv')
 
     # Loop through every CSV input file into a dataframe and process them sequentially
     for file in csv_files:
@@ -222,7 +211,7 @@ for dept in dept_list:
             term_df = dfs[dfs['Term'] == term]
             # Reorder the rows by 'Code', 'Number', and 'Section'
             term_df = term_df.sort_values(by=['Code', 'Number', 'Section'])
-            output_file = f'AEFIS_Evaluations_Processed/{dept}/{dept}-{term}_aefis.csv'
+            output_file = f'{aefis_processed_path}/{dept}/{dept}-{term}_aefis.csv'
             print(f'Saving File: {output_file}')
             try:
                 term_df.to_csv(output_file, index=False)
@@ -246,9 +235,10 @@ for dept in dept_list:
                 missing_df = pd.concat([missing_df, missing_email_df], ignore_index=True)
 
 missing_df = missing_df.drop_duplicates()
+missing_output = f"{PATHS['assessment_processed']}/missing_emails_aefis.csv"
 try:
-    missing_df.to_csv('ASSESSMENT_Processed/missing_emails_aefis.csv', index=False)
+    missing_df.to_csv(missing_output, index=False)
 except PermissionError:
-    print("Error: Permission denied writing to 'ASSESSMENT_Processed/missing_emails_aefis.csv'.")
+    print(f"Error: Permission denied writing to '{missing_output}'.")
 except Exception as e:
-    print(f"Error writing 'ASSESSMENT_Processed/missing_emails_aefis.csv': {e}")
+    print(f"Error writing '{missing_output}': {e}")
