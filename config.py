@@ -28,6 +28,12 @@ TERM_LIST_ALL = [
     '202431', '202511'
 ]
 
+# Terms for new processing (Fall=31, Spring=11, Summer=21)
+TERM_LIST_NEW = [
+    '202331', '202411', '202421',
+    '202431', '202511'
+]
+
 # Terms for departmental statistics computation (recent terms with reliable data)
 TERM_LIST_STATS = [
     '202231', '202311',
@@ -59,7 +65,7 @@ TERM_LIST_INSTRUCTORS = [
 
 # Complete list of all Engineering departments
 DEPT_LIST = [
-    'AERO', 'BAEN', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
+    'AERO', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
     'ETID', 'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE'
 ]
 
@@ -90,22 +96,22 @@ DEPT_MAPPING = {
 # Questions selected by the COE SET Task Force for evaluations
 QUESTION_NUMBERS = [3, 4, 5, 7, 8, 9]
 
-# Full question text (index 0 is a dummy placeholder)
+# Full question text for parsing raw AEFIS/OIEE files (index 0 is a dummy placeholder)
 QUESTIONS = [
     '',  # Index 0: Dummy placeholder
     'Begin this course evaluation by reflecting on your own level of engagement and participation in the course. What portion of the class preparation activities (e.g., readings, online modules, videos) and assignments did you complete?',
-    'I understood what was expected of me in this course.',
+    'Based on what the instructor(s) communicated, and the information provided in the course syllabus, I understood what was expected of me.',
     'This course helped me learn concepts or skills as stated in course objectives/outcomes.',
     'In this course, I engaged in critical thinking and/or problem solving.',
     'Please rate the organization of this course.',
-    'This course introduced me to diverse perspectives beyond my own, which may include perspectives from diverse groups (e.g., international, different majors, genders, ethnicities), authors from different schools of thought, varied pedagogical techniques, and various ways of solving problems.',
+    'In this course, I learned to critically evaluate diverse ideas and perspectives.',
     'Feedback in this course helped me learn. Please note, feedback can be either informal (e.g., in class discussion, chat boards, think-pair-share, office hour discussions, help sessions) or formal (e.g., written or clinical assessments, review of exams, peer reviews, clicker questions).',
     'The instructor fostered an effective learning environment.',
     'The instructor\'s teaching methods contributed to my learning.',
-    'I take responsibility for my own learning.',
-    'This course was required for my degree.',
-    'What grade do you expect to receive in this course?',
-    '',  # Index 13: General comments (open text)
+    'The instructor encouraged students to take responsibility for their own learning.',
+    'Is this course required?',
+    'Expected Grade in this Course',
+    'Please provide any general comments about this course.',
 ]
 
 # Maximum scale values for each question (index 0 is dummy)
