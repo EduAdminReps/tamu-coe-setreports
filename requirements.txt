@@ -1,0 +1,16 @@
+# Data processing and analysis
+pandas
+numpy
+
+# Text processing
+unidecode
+rapidfuzz
+
+# PDF report generation
+reportlab
+
+# Data visualization
+matplotlib
+
+# Google Gemini API (for AI comment summarization)
+google-generativeai
