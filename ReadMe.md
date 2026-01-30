@@ -13,11 +13,29 @@ This project is intended for College of Engineering faculty and staff with acces
 
 ## Workflow Overview
 
-### **STEP 0: Get Raw Data Files**
+---
+
+### **Step 1: Get Graces, Process GPAs, and Create Census**
+
+1. Launch a VOAL virtual machine (see TAMU bookmarks)
+2. Open Howdy on Chrome in the VM
+3. Under the 'Employee' tab, launch ARGOS
+4. Under COE DataBlocks, select `TR_ARGOS_Grades_Raw` (Teaching Reports)
+5. Run `ARGOS-Grades-Raw2Compressed.py`
+    - **Input:** Files in `ARGOS_Grades_Raw`
+    - **Output:** Files in `ARGOS_Grades_Compressed`
+6. Run 'Census-Argos2Names.py'
+    - **Input:** Files in `ARGOS_Grades_Compressed`
+    - **Input:** Files in `OIEE_Evaluations_Processed`
+    - **Output:** Files in `Census_ARGOS`
+
+---
+
+### **STEP 2: Get Raw Data Files**
 
 **Option 1: HelioCampus (AEFIS) - [https://tamu.aefis.net](https://tamu.aefis.net)**
 - Set the following AEFIS parameters:
-    - **Term:** Fall 2024 - College Station
+    - **Term:** Spring 2026 - College Station
     - **Institution:** TAMU [TAMU]
     - **College:** Engineering [EN]
     - **Department:** CS-Unit Engineering [CS-DEPT]
@@ -37,9 +55,14 @@ This project is intended for College of Engineering faculty and staff with acces
 
 ---
 
-### **Step 1: Process Raw Data Files**
+### **Step 3: Process Raw Data Files**
 
-#### **a. Use AEFIS Data**
+#### **a. Use OIEE Data (preferred)**
+- Run `OIEE-Evaluations-Raw2Processed.py`
+  - **Input:** Files in `OIEE_Evaluations_Raw`
+  - **Output:** Files in `OIEE_Evaluations_Processed`
+
+#### **b. Use AEFIS Data**
 - **Option 1a:** Run `AEFIS-Evaluations-Raw2Processed.py`  
   - **Input:** Files in `AEFIS_Evaluations_Raw`
   - **Output:** Files in `AEFIS_Evaluations_Processed`
@@ -48,14 +71,9 @@ This project is intended for College of Engineering faculty and staff with acces
   - **Output:** Files in `AEFIS_Evaluations_Processed`
 - *Note: The directory structure dictates which files get processed.*
 
-#### **b. Use OIEE Data**
-- Run `OIEE-Evaluations-Raw2Processed.py`
-  - **Input:** Files in `OIEE_Evaluations_Raw`
-  - **Output:** Files in `OIEE_Evaluations_Processed`
-
 ---
 
-### **Step 3: Combine and Copy Data**
+### **Step 4: Combine and Copy Data**
 
 - Run `ASSESSMENT-CombineSources.py`
     - **Potential Inputs:**  
@@ -63,18 +81,6 @@ This project is intended for College of Engineering faculty and staff with acces
       - Files in `OIEE_Evaluations_Processed`
     - **Output:** Files in `ASSESSMENT_Processed`
 - *Note: Both potential inputs have their own issues—choose the best available.*
-
----
-
-### **Step 4: Get and Process Grades**
-
-1. Launch a VOAL virtual machine (see TAMU bookmarks)
-2. Open Howdy on Chrome in the VM
-3. Under the 'Employee' tab, launch ARGOS
-4. Under COE DataBlocks, select `TR_ARGOS_Grades_Raw` (Teaching Reports)
-5. Run `ARGOS-Grades-Raw2Compressed.py`
-    - **Input:** Files in `ARGOS_Grades_Raw`
-    - **Output:** Files in `ARGOS_Grades_Compressed`
 
 ---
 
