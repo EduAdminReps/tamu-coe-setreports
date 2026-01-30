@@ -9,6 +9,12 @@ import numpy as np
 import pandas as pd
 import sys
 
+from config import (
+    COLLEGE_ID, CURRENT_YEAR, QUESTION_NUMBERS, LEVEL_DICT,
+    TERM_LIST_DATA, TERM_LIST_GENAI, TERM_LIST_INSTRUCTORS,
+    QUESTION_TEXT, QUESTION_SYNOPSES, QUESTION_LABELS, PATHS
+)
+
 from matplotlib import pyplot as plt
 from matplotlib.patches import Patch
 import matplotlib.colors as mcolors
@@ -112,41 +118,18 @@ def compute_weighted_score(df):
 # This section contains text that goes into the report.
 ###########################################################################################################
 
-Q3_text = 'This course helped me learn concepts or skills as stated in course objectives/outcomes.'
-Q4_text = 'In this course, I engaged in critical thinking and/or problem solving.'
-Q5_text = 'Please rate the organization of this course.'
-Q7_text = 'Feedback in this course helped me learn. Please note, feedback can be either informal (e.g., in class discussion, chat boards, think-pair-share, office hour discussions, help sessions) or formal (e.g., written or clinical assessments, review of exams, peer reviews, clicker questions).'
-Q8_text = 'The instructor fostered an effective learning environment.'
-Q9_text = 'The instructor\'s teaching methods contributed to my learning.'
-
+# Use centralized question text from config
 question_description = [
-    'Question 3 (1-4): ' + Q3_text,
-    'Question 4 (1-4): ' + Q4_text,
-    'Question 5 (1-4): ' + Q5_text,
-    'Question 7 (1-6): ' + Q7_text,
-    'Question 8 (1-5): ' + Q8_text,
-    'Question 9 (1-3): ' + Q9_text
+    f'Question 3 (1-4): {QUESTION_TEXT[3]}',
+    f'Question 4 (1-4): {QUESTION_TEXT[4]}',
+    f'Question 5 (1-4): {QUESTION_TEXT[5]}',
+    f'Question 7 (1-6): {QUESTION_TEXT[7]}',
+    f'Question 8 (1-5): {QUESTION_TEXT[8]}',
+    f'Question 9 (1-3): {QUESTION_TEXT[9]}'
 ]
 
-question_synopses = [
-    'Q3 Concepts',
-    'Q4 Thinking',
-    'Q5 Organization',
-    'Q7 Feedback',
-    'Q8 Environment',
-    'Q9 Pedagogy',
-    'GPA'
-]
-
-label_synopses = [
-    'Q3\nConcepts\nand Skills',
-    'Q4\nCritical\nThinking',
-    'Q5\nCourse\nOrganization',
-    'Q7\nInstructor\nFeedback',
-    'Q8\nLearning\nEnvironment',
-    'Q9\nPedagogy\nand Methods',
-    'Overall\nCourse\nGPA'
-]
+question_synopses = QUESTION_SYNOPSES
+label_synopses = QUESTION_LABELS
 
 eval_text = ('University Guidelines: Complete longitudinal summaries (chronological and in tabular form) \
             of the student evaluations must be presented, with numerical data set in the context of \
@@ -189,41 +172,21 @@ note_text = 'Reports are based on student evaluation data provided \
 
 ###########################################################################################################
 
-level_dict = {'one': '1XX', 'two': '2XX', 'three': '3XX', 'four': '4XX', 'grad': 'Grad'}
-
-current_year = '2026'
-# Data terms
-term_data_list = [
-    # '202031', '202111', '202121',
-    # '202131', '202211', '202221',
-    '202231', '202311', '202321',
-    '202331', '202411', '202421',
-    '202431', '202511', '202521',
-    '202531'
-]
-# GENAI terms
-term_genai_list = [
-    '202331', '202411', '202431', '202511', '202531'
-]
-
-# This list determines which instructors will be included in the report.
-term_instructor_list = ['202331', '202411', '202431', '202511', '202531']
-
-college_id = 'EN'  # Engineering College ID
-# dept_list = ['AERO', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
-#              'ETID', 'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE']
-# AERO, BMENCHEN, CSCE, CVEN, ISEN, MTDE, NUEN, OCEN, PETE
-# dept_list = ['BMEN']
-
-# Questions to process
-question_num = [3, 4, 5, 7, 8, 9]
+# Use centralized configuration
+level_dict = LEVEL_DICT
+current_year = CURRENT_YEAR
+term_data_list = TERM_LIST_DATA
+term_genai_list = TERM_LIST_GENAI
+term_instructor_list = TERM_LIST_INSTRUCTORS
+college_id = COLLEGE_ID
+question_num = QUESTION_NUMBERS
 
 # FLAGS
 ai_flag = True
 
 # Ensure output directories exist
-myPath('DATA_Reports').mkdir(parents=True, exist_ok=True)
-myPath('TEMP').mkdir(parents=True, exist_ok=True)
+myPath(PATHS['data_reports']).mkdir(parents=True, exist_ok=True)
+myPath(PATHS['temp']).mkdir(parents=True, exist_ok=True)
 
 # Initialize an empty list to store DataFrames
 dataframes = []
@@ -231,8 +194,8 @@ genaiframes = []
 # Build one DataFrame
 for term_data in term_data_list:
     # Load ASSESSMENT and ARGOS files
-    base_path = f'DATA_Evaluations/'
-    data_file = myPath(base_path + f'/Data-{college_id}-{term_data}.csv')
+    base_path = PATHS['data_evaluations']
+    data_file = myPath(f'{base_path}/Data-{college_id}-{term_data}.csv')
     # Load the file into a DataFrame
     data_file_df = load_csv(data_file)
     # df_argos_file = pd.read_csv(argos_file)
@@ -243,8 +206,8 @@ for term_data in term_data_list:
 
 for term_genai in term_genai_list:
     # Load GENAI files
-    genai_base_path = f'GENAI'
-    genai_file = myPath(genai_base_path + f'/GENAI-Summaries-{college_id}-{term_genai}.csv')
+    genai_base_path = PATHS['genai']
+    genai_file = myPath(f'{genai_base_path}/GENAI-Summaries-{college_id}-{term_genai}.csv')
     # Load the file into a DataFrame
     genai_file_df = load_csv(genai_file)
     if genai_file_df is not None:
@@ -288,10 +251,10 @@ argos_df['Weighted_Score'] = compute_weighted_score(argos_df)
 term_normalizer = mcolors.Normalize(vmin=min(argos_df['Term'].astype(int)),
                                     vmax=max(argos_df['Term'].astype(int)))
 
-quantile_path = f'DATA_DeptStats'
-quantiles_file = myPath(quantile_path + f'/{college_id}-quantiles.csv')
+quantile_path = PATHS['data_dept_stats']
+quantiles_file = myPath(f'{quantile_path}/{college_id}-quantiles.csv')
 quantiles_df = load_csv(quantiles_file)
-dept_stats_file = myPath(quantile_path + f'/{college_id}-departmental-statistics.csv')
+dept_stats_file = myPath(f'{quantile_path}/{college_id}-departmental-statistics.csv')
 dept_stats_df = load_csv(dept_stats_file)
 
 if quantiles_df is None or dept_stats_df is None:
@@ -319,8 +282,8 @@ report_columns_stylized = ['Course', 'Term'] + [VerticalText(i) for i in ['Enrol
 # Needs work
 faculty_flag = True
 if faculty_flag:
-    faculty_uin = [815006422]
-    faculty_report = SimpleDocTemplate(f'TEMP/{str(faculty_uin[0])}.pdf', pagesize=letter)
+    faculty_uin = [000000000]
+    faculty_report = SimpleDocTemplate(f"{PATHS['temp']}/{str(faculty_uin[0])}.pdf", pagesize=letter)
     faculty_elements = []
 
 if faculty_flag:
@@ -358,7 +321,7 @@ static_elements.append(PageBreak())
 for dept in dept_list:
     print(f'Proceeding with department: {dept}.')
     # DEPARTMENT REPORT: Create a PDF report canvas for the department
-    dept_report = SimpleDocTemplate(f'DATA_Reports/{dept}-{current_year}-Teaching-Report.pdf', pagesize=letter)
+    dept_report = SimpleDocTemplate(f"{PATHS['data_reports']}/{dept}-{current_year}-Teaching-Report.pdf", pagesize=letter)
     dept_elements = []
 
     if faculty_flag:
@@ -387,7 +350,7 @@ for dept in dept_list:
         print(f"Processing {dept} instructor: {instructor}")
 
         # INDIVIDUAL REPORT: Create a PDF report canvas for given instructor
-        out_dir = myPath("DATA_Reports") / dept
+        out_dir = myPath(PATHS['data_reports']) / dept
         out_dir.mkdir(parents=True, exist_ok=True)
 
         individual_path = out_dir / f'{individual_email} ({dept}) {current_year}.pdf'

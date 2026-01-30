@@ -20,13 +20,13 @@ import glob, sys
 import pandas as pd
 import numpy as np
 
-# Define grade points
-grade_points = {'A': 4.0, 'B': 3.0, 'C': 2.0, 'D': 1.0, 'F': 0.0}
+from config import COLLEGE_ID, GRADE_POINTS, PATHS
 
-# List desired CSV files in the directory
-college_id = 'EN'  # Engineering College ID
-base_path = 'ARGOS_Grades_Raw'
-output_path = 'ARGOS_Grades_Compressed'
+# Use centralized configuration
+grade_points = GRADE_POINTS
+college_id = COLLEGE_ID
+base_path = PATHS['argos_raw']
+output_path = PATHS['argos_compressed']
 
 # Ensure output directory exists
 Path(output_path).mkdir(parents=True, exist_ok=True)
