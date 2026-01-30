@@ -14,6 +14,8 @@ import pandas as pd
 import numpy as np
 import sys
 
+from config import COLLEGE_ID, QUESTION_NUMBERS, TERM_LIST_ALL, PATHS
+
 
 ########################################################################################################################
 
@@ -61,18 +63,13 @@ def combine_stats(group, questions):
 
 ########################################################################################################################
 
+# Use centralized configuration
+term_list = TERM_LIST_ALL
 
-term_list = [
-    '202031', '202111', '202121',
-    '202131', '202211', '202221',
-    '202231', '202311', '202321',
-    '202331', '202411', '202421',
-    '202431', '202511'
-]
 # Merge Keys
 merge_keys = ['Dept', 'Term', 'Code', 'Number', 'LastName', 'FirstName', 'UIN']
 
-questions = [3, 4, 5, 7, 8, 9]
+questions = QUESTION_NUMBERS
 assessment_course_columns = ['Dept', 'Year', 'Semester', 'Code', 'Number', 'Term', 'Level']
 assessment_instructor = ['LastName', 'FirstName', 'FullName', 'Instructor', 'UIN']
 assessment_questions = [f'Q{i}_count' for i in questions] + [f'Q{i}_avg' for i in questions] + [f'Q{i}_stddev' for i in questions]
@@ -86,10 +83,10 @@ argos_columns = ['College', 'Dept', 'Code', 'Number', 'Term',
                  'Total', 'Count', 'GPA', 'STD', 'InstructorSCH']
 new_column_dict = {'Subject': 'Code', 'Enrollment': 'Total'}
 
-college_id = 'EN'  # Engineering College ID
-argos_grades_path = 'ARGOS_Grades_Compressed'
-assessment_path = 'ASSESSMENT_Processed'
-output_path = 'DATA_Evaluations'
+college_id = COLLEGE_ID
+argos_grades_path = PATHS['argos_compressed']
+assessment_path = PATHS['assessment_processed']
+output_path = PATHS['data_evaluations']
 
 # Ensure output directory exists
 Path(output_path).mkdir(parents=True, exist_ok=True)

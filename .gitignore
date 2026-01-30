@@ -1,3 +1,4 @@
+.DS_Store
 GENAI_Credentials/
 *.csv
 AEFIS_Evaluations_Processed
@@ -9,6 +10,7 @@ DATA_DeptStats
 DATA_Evaluations
 DATA_Reports
 GENAI
+TEMP
 OIEE_Comments_Processed/
 OIEE_Comments_Raw/
 OIEE_Evaluations_Processed/

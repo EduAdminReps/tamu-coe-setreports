@@ -17,32 +17,22 @@ If an OIEE file is missing, use the corresponding AEFIS file instead.
 import pandas as pd
 from pathlib import Path
 
-college_id = 'EN'  # Engineering College ID
+from config import COLLEGE_ID, DEPT_LIST, TERM_LIST_ALL, PATHS
 
-# List of Engineering Departments and Units
-dept_list = [
-    'AERO', 'BMEN', 'CHEN',
-    'CLEN', 'CSCE', 'CVEN',
-    'ECEN', 'ETID', 'ISEN',
-    'MEEN', 'MSEN', 'MTDE',
-    'NUEN', 'OCEN', 'PETE'
-]
-# dept_list = ['BAEN']
+# Use centralized configuration
+college_id = COLLEGE_ID
+dept_list = DEPT_LIST
+term_list = TERM_LIST_ALL
 
-# List of Terms
-term_list = [
-    '202331', '202111', '202121',
-    '202131', '202211', '202221',
-    '202231', '202311', '202321',
-    '202331', '202411', '202421',
-    '202431', '202511'
-]
+oiee_path = PATHS['oiee_evaluations_processed']
+aefis_path = PATHS['aefis_processed']
+assessment_path = PATHS['assessment_processed']
 
 for term in term_list:
     print('Term: ' + term)
 
     # Read the OIEE data into a DataFrame
-    oiee_file = Path(f"OIEE_Evaluations_Processed/OIEE-Evaluations-{college_id}-{term}_processed.csv")
+    oiee_file = Path(f"{oiee_path}/OIEE-Evaluations-{college_id}-{term}_processed.csv")
     # Check if the file exists
     if oiee_file.exists():
         # Load the file into a DataFrame
@@ -58,7 +48,7 @@ for term in term_list:
     aefis_flag = True
     for dept in dept_list:
         # Read the AEFIS data into a DataFrame
-        aefis_file = Path(f'AEFIS_Evaluations_Processed/{dept}/{dept}-{term}_aefis.csv')
+        aefis_file = Path(f'{aefis_path}/{dept}/{dept}-{term}_aefis.csv')
         # Check if the file exists
         if aefis_file.exists():
             # Load the file into a DataFrame
@@ -81,7 +71,7 @@ for term in term_list:
         print("No valid dataframes found.")
         aefis_flag = False
 
-    assessment_file = Path(f'ASSESSMENT_Processed/ASSESSMENT-{college_id}-{term}.csv')
+    assessment_file = Path(f'{assessment_path}/ASSESSMENT-{college_id}-{term}.csv')
     if oiee_flag:
         assessment_df = oiee_df
         assessment_df.to_csv(assessment_file, index=False)

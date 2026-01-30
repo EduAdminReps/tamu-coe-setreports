@@ -36,6 +36,8 @@ import unicodedata
 import re, html, sys
 from rapidfuzz import fuzz
 
+from config import COLLEGE_ID, QUESTION_NUMBERS, PATHS
+
 
 ########################################################################################################################
 
@@ -129,7 +131,7 @@ questions[12] = 'Expected Grade in this Course'
 questions[13] = 'Please provide any general comments about this course.'
 
 questions_dict = { questions[idx]: 'Q' + str(idx) for idx in range(0, 13) }
-questions_list = ['Q3', 'Q4', 'Q5', 'Q7', 'Q8', 'Q9']
+questions_list = [f'Q{q}' for q in QUESTION_NUMBERS]  # Selected COE SET questions
 
 dept_dict = {
     'CS-Aerospace Engineering': 'AERO',
@@ -170,10 +172,6 @@ columns_dict = {
 replacement_dict = {'Spring': '11', 'Summer': '21', 'Fall': '31'}
 reversed_dict = {value: key for key, value in replacement_dict.items()}
 
-# List of Engineering Departments and Units
-dept_list = ['AERO', 'BAEN', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
-             'ETID', 'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE']
-
 output_columns = [
     'Dept', 'Code', 'Number', 'Section', 'Location', 'Term',
     'UIN', 'Instructor', 'OtherInstructor',
@@ -183,10 +181,10 @@ output_columns = [
 ########################################################################################################################
 
 
-# List desired CSV files in the directory
-college_id = 'EN'  # Engineering College ID
-base_path = 'OIEE_Comments_Raw'
-output_path = 'OIEE_Comments_Processed'
+# Use centralized configuration
+college_id = COLLEGE_ID
+base_path = PATHS['oiee_comments_raw']
+output_path = PATHS['oiee_comments_processed']
 
 # Ensure output directory exists
 Path(output_path).mkdir(parents=True, exist_ok=True)

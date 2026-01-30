@@ -23,6 +23,8 @@ from pathlib import Path
 import pandas as pd
 import re, html, sys
 
+from config import COLLEGE_ID, DEPT_LIST, QUESTIONS_MAX, PATHS, map_course_level
+
 
 ########################################################################################################################
 
@@ -52,26 +54,9 @@ def normalize_string(s):
     return s.strip()
 
 
-# Define a map from course number to course level
-def map_course_level(course_level):
-    course_level_string = str(course_level)
-    course_leading_digit = course_level_string[0]
-    if course_leading_digit == '1':
-        level = 'one'
-    elif course_leading_digit == '2':
-        level = 'two'
-    elif course_leading_digit == '3':
-        level = 'three'
-    elif course_leading_digit == '4':
-        level = 'four'
-    else:
-        level = 'grad'
-    return level
-
-
 ########################################################################################################################
 
-# List of standard AEFIS questions
+# List of standard OIEE questions (OIEE-specific text for parsing raw files)
 size = 14 # Number of questions + dummy question at index 0
 initial_value = None
 questions = [initial_value] * size
@@ -113,10 +98,11 @@ questions[12] = 'Expected Grade in this Course'
 # Scale (1 - 8) 1 = A 8 = U
 # Type: Multi-Choice, Single Answer
 questions[13] = 'Please provide any general comments about this course.'
-questions_max = [0, 4, 3, 4, 4, 4, 6, 6, 5, 3, 3, 2, 8, 0] # Leading 0 is a dummy value
+questions_max = QUESTIONS_MAX  # Scale values from centralized config
 
 questions_dict = { questions[idx]: 'Q' + str(idx) for idx in range(0, 13) }
 
+# OIEE-specific department mapping (differs from AEFIS naming conventions)
 dept_dict = {
     'CS-Aerospace Engineering': 'AERO',
     'CS-Biomedical Engineering': 'BMEN',
@@ -174,22 +160,17 @@ instr_question_columns = [
 question_columns = mcsa_question_columns + instr_question_columns
 keep_columns = base_columns + question_columns
 
-# List of Engineering Departments and Units
-dept_list = ['AERO', 'BAEN', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
-             'ETID', 'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE']
-
-
 ########################################################################################################################
 
 
-# List desired CSV files in the directory
-college_id = 'EN'  # Engineering College ID
-base_path = 'OIEE_Evaluations_Raw'
-output_path = 'OIEE_Evaluations_Processed'
+# Use centralized configuration
+college_id = COLLEGE_ID
+base_path = PATHS['oiee_evaluations_raw']
+output_path = PATHS['oiee_evaluations_processed']
 
 # Ensure output directories exist
 Path(output_path).mkdir(parents=True, exist_ok=True)
-Path('ASSESSMENT_Processed').mkdir(parents=True, exist_ok=True)
+Path(PATHS['assessment_processed']).mkdir(parents=True, exist_ok=True)
 
 csv_evaluations_files = list(Path(base_path).glob(f'OIEE-Evaluations-{college_id}-*.csv'))
 
@@ -387,9 +368,10 @@ for file in csv_evaluations_files:
             missing_df = pd.concat([missing_df, missing_email_df], ignore_index=True)
 
 missing_df = missing_df.drop_duplicates()
+missing_output = f"{PATHS['assessment_processed']}/missing_emails_oiee.csv"
 try:
-    missing_df.to_csv('ASSESSMENT_Processed/missing_emails_oiee.csv', index=False)
+    missing_df.to_csv(missing_output, index=False)
 except PermissionError:
-    print("Error: Permission denied writing to 'ASSESSMENT_Processed/missing_emails_oiee.csv'.")
+    print(f"Error: Permission denied writing to '{missing_output}'.")
 except Exception as e:
-    print(f"Error writing 'ASSESSMENT_Processed/missing_emails_oiee.csv': {e}")
+    print(f"Error writing '{missing_output}': {e}")

@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import sys
 
+from config import COLLEGE_ID, QUESTION_NUMBERS, TERM_LIST_STATS, PATHS
+
 
 ###########################################################################################################
 # ARGOS functions
@@ -148,16 +150,11 @@ def compute_full_quantiles_dataframe(data_df, metrics):
 
 ###########################################################################################################
 
-Terms = [
-    # '202031', '202111', '202121',
-    # '202131', '202211', '202221',
-    '202231', '202311', # '202321',
-    '202331', '202411', # '202421',
-    '202431', '202511'
-]
+# Use centralized configuration
+Terms = TERM_LIST_STATS  # Recent terms for statistics computation
 
-# Questions to process
-question_num = [3, 4, 5, 7, 8, 9]
+# Questions selected by COE SET Task Force
+question_num = QUESTION_NUMBERS
 
 # Define metrics for processing
 question_metrics = [
@@ -170,10 +167,10 @@ general_metrics = [
 all_metrics = question_metrics + general_metrics
 
 
-# List desired CSV files in the directory
-college_id = 'EN'  # Engineering College ID
-base_path = 'DATA_Evaluations'
-output_path = 'DATA_DeptStats'
+# Use centralized configuration for paths
+college_id = COLLEGE_ID
+base_path = PATHS['data_evaluations']
+output_path = PATHS['data_dept_stats']
 
 # Ensure output directory exists
 Path(output_path).mkdir(parents=True, exist_ok=True)
