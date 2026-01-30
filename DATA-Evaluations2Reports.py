@@ -7,6 +7,7 @@ contextual explanations for departmental and instructor-specific evaluations.
 from pathlib import Path as myPath
 import numpy as np
 import pandas as pd
+import sys
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import Patch
@@ -45,9 +46,16 @@ ai_style = ParagraphStyle(
 
 def load_csv(file_path):
     if not file_path.exists():
-        print(f"File not found: {file_path}")
+        print(f"Error: File not found: {file_path}")
         return None
-    return pd.read_csv(file_path)
+    try:
+        return pd.read_csv(file_path)
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file_path}' is empty.")
+        return None
+    except Exception as e:
+        print(f"Error reading '{file_path}': {e}")
+        return None
 
 def fig2image(fig):
     buf = io.BytesIO()
@@ -213,6 +221,10 @@ question_num = [3, 4, 5, 7, 8, 9]
 # FLAGS
 ai_flag = True
 
+# Ensure output directories exist
+myPath('DATA_Reports').mkdir(parents=True, exist_ok=True)
+myPath('TEMP').mkdir(parents=True, exist_ok=True)
+
 # Initialize an empty list to store DataFrames
 dataframes = []
 genaiframes = []
@@ -241,22 +253,32 @@ for term_genai in term_genai_list:
         continue
 
 # Concatenate ASSESSMENT and ARGOS DataFrames into one
-if dataframes:
-    dataframes = [df for df in dataframes if not df.empty]
-    argos_df = pd.concat(dataframes, ignore_index=True)
-    argos_df['Term'] = argos_df['Term'].astype(str)
-    print(f"Combined ASSESSMENT and ARGOS DataFrame has {len(argos_df)} rows.")
-else:
-    print("No valid ASSESSMENT and ARGOS data files found.")
+if not dataframes:
+    print("Error: No valid ASSESSMENT and ARGOS data files found.")
+    sys.exit(1)
 
-# Concatenate GENAI DataFrames into one
+# Filter out empty DataFrames
+non_empty_dataframes = [df for df in dataframes if not df.empty]
+if not non_empty_dataframes:
+    print("Error: All loaded DataFrames are empty.")
+    sys.exit(1)
+
+argos_df = pd.concat(non_empty_dataframes, ignore_index=True)
+argos_df['Term'] = argos_df['Term'].astype(str)
+print(f"Combined ASSESSMENT and ARGOS DataFrame has {len(argos_df)} rows.")
+
+# Concatenate GENAI DataFrames into one (optional - reports work without GENAI data)
+genai_df = None
 if genaiframes:
-    genaiframes = [df for df in genaiframes if not df.empty]
-    genai_df = pd.concat(genaiframes, ignore_index=True)
-    genai_df['Term'] = genai_df['Term'].astype(str)
-    print(f"Combined GENAI DataFrame has {len(genai_df)} rows.")
+    non_empty_genaiframes = [df for df in genaiframes if not df.empty]
+    if non_empty_genaiframes:
+        genai_df = pd.concat(non_empty_genaiframes, ignore_index=True)
+        genai_df['Term'] = genai_df['Term'].astype(str)
+        print(f"Combined GENAI DataFrame has {len(genai_df)} rows.")
+    else:
+        print("Warning: All loaded GENAI DataFrames are empty. AI summaries will be excluded.")
 else:
-    print("No valid GENAI data files found.")
+    print("No GENAI data files found. AI summaries will be excluded from reports.")
 
 
 # Compute the Weighted Score
@@ -271,6 +293,10 @@ quantiles_file = myPath(quantile_path + f'/{college_id}-quantiles.csv')
 quantiles_df = load_csv(quantiles_file)
 dept_stats_file = myPath(quantile_path + f'/{college_id}-departmental-statistics.csv')
 dept_stats_df = load_csv(dept_stats_file)
+
+if quantiles_df is None or dept_stats_df is None:
+    print("Error: Required departmental statistics files not found. Run DATA-Evaluations2DeptStats.py first.")
+    sys.exit(1)
 
 # Find the minimum and maximum values
 min_year = argos_df['Year'].min()
@@ -293,7 +319,7 @@ report_columns_stylized = ['Course', 'Term'] + [VerticalText(i) for i in ['Enrol
 # Needs work
 faculty_flag = True
 if faculty_flag:
-    faculty_uin = [000000000]
+    faculty_uin = [815006422]
     faculty_report = SimpleDocTemplate(f'TEMP/{str(faculty_uin[0])}.pdf', pagesize=letter)
     faculty_elements = []
 
@@ -348,14 +374,14 @@ for dept in dept_list:
         individual_email = str(instructor_argos_df.iloc[0].get('Email', '') or '').strip()
         email_name = individual_email.split('@')[0] if '@' in individual_email else f"UIN_{UIN}"
 
-        try:
-            instructor_genai_df = genai_df.loc[genai_df['UIN'] == UIN].copy() # COMMENTS
-            instructor_genai_df['Course'] = instructor_genai_df['Code'] + ' ' + instructor_genai_df['Number'].astype(str)
-        except NameError:
-            print('No GENAI data available for this report.')
-            instructor_genai_df = pd.DataFrame()
-        except KeyError as e:
-            print(f"Missing expected column: {e}")
+        if genai_df is not None:
+            try:
+                instructor_genai_df = genai_df.loc[genai_df['UIN'] == UIN].copy()
+                instructor_genai_df['Course'] = instructor_genai_df['Code'] + ' ' + instructor_genai_df['Number'].astype(str)
+            except KeyError as e:
+                print(f"Missing expected column in GENAI data: {e}")
+                instructor_genai_df = pd.DataFrame()
+        else:
             instructor_genai_df = pd.DataFrame()
 
         print(f"Processing {dept} instructor: {instructor}")
@@ -419,11 +445,9 @@ for dept in dept_list:
                     else:
                         df_instructor_report = pd.concat([df_instructor_report, df_instructor_pruned[report_columns]], ignore_index=True)
 
-                try:
-                    instructor_genai_df
-                    instructor_text_df = instructor_genai_df.loc[instructor_genai_df['Course'] == course] # Comments
-                except NameError:
-                    print('No GENAI data available for this report.')
+                if not instructor_genai_df.empty:
+                    instructor_text_df = instructor_genai_df.loc[instructor_genai_df['Course'] == course]
+                else:
                     instructor_text_df = pd.DataFrame()
                 if not instructor_text_df.empty:
                     for index, row in instructor_text_df.iterrows():
@@ -720,14 +744,29 @@ for dept in dept_list:
 
         dept_elements = dept_elements + individual_elements
         # Build individual reports
-        individual_report.build(static_elements + individual_elements)
+        try:
+            individual_report.build(static_elements + individual_elements)
+        except PermissionError:
+            print(f"Error: Permission denied writing to '{individual_path}'.")
+        except Exception as e:
+            print(f"Error building individual report '{individual_path}': {e}")
 
     # Build department report
     if faculty_flag:
         faculty_elements = faculty_elements + dept_elements
     else:
-        dept_report.build(static_elements + dept_elements)
+        try:
+            dept_report.build(static_elements + dept_elements)
+        except PermissionError:
+            print(f"Error: Permission denied writing department report for '{dept}'.")
+        except Exception as e:
+            print(f"Error building department report for '{dept}': {e}")
 
 if faculty_flag:
-    faculty_report.build(static_elements + faculty_elements)
+    try:
+        faculty_report.build(static_elements + faculty_elements)
+    except PermissionError:
+        print("Error: Permission denied writing faculty report.")
+    except Exception as e:
+        print(f"Error building faculty report: {e}")
 

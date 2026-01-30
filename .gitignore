@@ -4,6 +4,8 @@ AEFIS_Evaluations_Processed
 AEFIS_Evaluations_Raw
 ARGOS_Grades_Compressed
 ARGOS_Grades_Raw
+Census_ARGOS
+DATA_DeptStats
 DATA_Evaluations
 DATA_Reports
 GENAI
@@ -13,3 +15,4 @@ OIEE_Evaluations_Processed/
 OIEE_Evaluations_Raw/
 ASSESSMENT_Processed/
 NAMES-Course-Bind.csv
+.venv/
