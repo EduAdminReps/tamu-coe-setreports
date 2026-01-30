@@ -11,6 +11,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.patches import Patch
 import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
 
 # ReportLab related import's
 import io
@@ -20,10 +21,23 @@ from reportlab.lib.styles import getSampleStyleSheet
 styles = getSampleStyleSheet()
 style = styles["Normal"]
 from reportlab.graphics.shapes import *
-from reportlab.platypus.flowables import Flowable
+from reportlab.platypus.flowables import Flowable, CondPageBreak
 from reportlab.platypus import Image
 from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_LEFT
 
+
+ai_style = ParagraphStyle(
+    "AIStyle",
+    parent=styles["Normal"],
+    alignment=TA_LEFT,
+    wordWrap="CJK",      # key: allows breaking inside long tokens
+    splitLongWords=1,    # key: lets ReportLab split long “words”
+    spaceAfter=6,
+    keepWithNext = 0,
+    keepTogether = 0,
+)
 
 ###########################################################################################################
 # Define functions
@@ -35,11 +49,11 @@ def load_csv(file_path):
         return None
     return pd.read_csv(file_path)
 
-def fig2image(f):
+def fig2image(fig):
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=300)
+    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
     buf.seek(0)
-    fx, fy = plt.gcf().get_size_inches()
+    fx, fy = fig.get_size_inches()
     return Image(buf, fx * inch, fy * inch)
 
 class VerticalText(Flowable):
@@ -78,7 +92,13 @@ def compute_weighted_score(df):
     averages = (df[[f'{q}_avg' for q in questions]].values - 1) * scaling_factors
     weighted_sum = np.sum(np.multiply(counts, averages), axis=1)
     total_counts = np.sum(counts, axis=1)
-    return weighted_sum / total_counts
+    out = np.divide(
+        weighted_sum,
+        total_counts,
+        out=np.full_like(weighted_sum, np.nan, dtype=float),
+        where=total_counts != 0
+    )
+    return out
 
 ###########################################################################################################
 # This section contains text that goes into the report.
@@ -143,6 +163,11 @@ set_text = 'The questions listed below were identified by the College of Enginee
             faculty annual reviews, as well as promotion and tenure evaluations.'
 # 'While some members desired a single number to represent teaching effectiveness, the group collectively agreed that this was not a desirable option.'
 
+info_text = ('Readers interested in the methodology underlying these reports, including data sources, preprocessing, \
+            visualization design, and the AI-assisted summarization pipeline (anonymization, hierarchical \
+            aggregation, and exception-handling safeguards), may consult the accompanying arXiv manuscript \
+            <i>Teaching at Scale: Leveraging AI to Evaluate and Elevate Engineering Education</i> \
+            (<a href="https://arxiv.org/abs/2508.02731">arXiv:2508.02731</a>).')
 note_text = 'Reports are based on student evaluation data provided \
             by the TAMU Office of Institutional Effectiveness and Evaluation (OIEE). \
             Grade distributions and class sizes are sourced from ARGOS. \
@@ -158,26 +183,29 @@ note_text = 'Reports are based on student evaluation data provided \
 
 level_dict = {'one': '1XX', 'two': '2XX', 'three': '3XX', 'four': '4XX', 'grad': 'Grad'}
 
+current_year = '2026'
 # Data terms
 term_data_list = [
     # '202031', '202111', '202121',
-    '202131', '202211', '202221',
+    # '202131', '202211', '202221',
     '202231', '202311', '202321',
     '202331', '202411', '202421',
-    '202431', '202511'
+    '202431', '202511', '202521',
+    '202531'
 ]
 # GENAI terms
 term_genai_list = [
-    '202331', '202411', '202431', '202511'
+    '202331', '202411', '202431', '202511', '202531'
 ]
 
 # This list determines which instructors will be included in the report.
-term_instructor_list = ['202431', '202511']
+term_instructor_list = ['202331', '202411', '202431', '202511', '202531']
 
 college_id = 'EN'  # Engineering College ID
-# dept_list = ['AERO', 'BAEN', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
+# dept_list = ['AERO', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
 #              'ETID', 'ISEN', 'MEEN', 'MSEN', 'MTDE', 'NUEN', 'OCEN', 'PETE']
-# dept_list = ['BAEN']
+# AERO, BMENCHEN, CSCE, CVEN, ISEN, MTDE, NUEN, OCEN, PETE
+# dept_list = ['BMEN']
 
 # Questions to process
 question_num = [3, 4, 5, 7, 8, 9]
@@ -244,7 +272,6 @@ quantiles_df = load_csv(quantiles_file)
 dept_stats_file = myPath(quantile_path + f'/{college_id}-departmental-statistics.csv')
 dept_stats_df = load_csv(dept_stats_file)
 
-current_year = '2025'
 # Find the minimum and maximum values
 min_year = argos_df['Year'].min()
 max_year = argos_df['Year'].max()
@@ -267,14 +294,40 @@ report_columns_stylized = ['Course', 'Term'] + [VerticalText(i) for i in ['Enrol
 faculty_flag = True
 if faculty_flag:
     faculty_uin = [000000000]
-    #
     faculty_report = SimpleDocTemplate(f'TEMP/{str(faculty_uin[0])}.pdf', pagesize=letter)
     faculty_elements = []
 
 if faculty_flag:
     dept_list = argos_df.loc[argos_df['UIN'].isin(faculty_uin)]['Dept'].unique().tolist()
-else:
-    dept_list = argos_df['Dept'].unique().tolist()
+# else:
+#     dept_list = argos_df['Dept'].unique().tolist()
+
+static_elements = []
+# REPORT: Add a section title
+styles = getSampleStyleSheet()
+section_title = Paragraph(f'<font size=14>Student Evaluation of Teaching</font>', styles["Heading1"])
+static_elements.append(section_title)
+static_elements.append(Paragraph(eval_text))
+static_elements.append(Paragraph('<font size=12>SET Task Force Recommendations</font>', styles["Heading2"]))
+static_elements.append(Paragraph(set_text))
+
+static_elements.append(Paragraph('<font size=10>Questions</font>', styles["Heading3"]))
+list_flowable = ListFlowable(
+    [
+        ListItem(Paragraph(item, style=getSampleStyleSheet()["Normal"]), bulletColor="black")
+        for item in question_description
+    ],
+    bulletType="bullet",
+    leftIndent=10,
+    spaceBefore=2,
+    spaceAfter=2,
+)
+static_elements.append(list_flowable)
+static_elements.append(Paragraph('<font size=12>Technical Description</font>', styles["Heading2"]))
+static_elements.append(Paragraph(info_text))
+static_elements.append(Paragraph('<font size=12>Disclaimer</font>', styles["Heading2"]))
+static_elements.append(Paragraph(note_text))
+static_elements.append(PageBreak())
 
 for dept in dept_list:
     print(f'Proceeding with department: {dept}.')
@@ -286,51 +339,34 @@ for dept in dept_list:
         UIN_list = faculty_uin
     else:
         UIN_list = argos_df.loc[(argos_df['Dept'] == dept) & (argos_df['Term'].isin(term_instructor_list))]['UIN'].unique()
+        # UIN_list = UIN_list[:5]
     print(f'The number of instructors in {dept} is {len(UIN_list)}.')
     # Iterate through the instructors
     for UIN in UIN_list:
         instructor_argos_df = argos_df.loc[argos_df['UIN'] == UIN].copy()
         instructor = instructor_argos_df.iloc[0]['Instructor']
-        individual_email = instructor_argos_df.iloc[0]['Email']
-        email_name = individual_email.split('@')[0]
+        individual_email = str(instructor_argos_df.iloc[0].get('Email', '') or '').strip()
+        email_name = individual_email.split('@')[0] if '@' in individual_email else f"UIN_{UIN}"
 
-        instructor_genai_df = genai_df.loc[genai_df['UIN'] == UIN].copy() # COMMENTS
-        instructor_genai_df['Course'] = instructor_genai_df['Code'] + ' ' + instructor_genai_df['Number'].astype(str)
+        try:
+            instructor_genai_df = genai_df.loc[genai_df['UIN'] == UIN].copy() # COMMENTS
+            instructor_genai_df['Course'] = instructor_genai_df['Code'] + ' ' + instructor_genai_df['Number'].astype(str)
+        except NameError:
+            print('No GENAI data available for this report.')
+            instructor_genai_df = pd.DataFrame()
+        except KeyError as e:
+            print(f"Missing expected column: {e}")
+            instructor_genai_df = pd.DataFrame()
 
-        print(f'Processing {dept} instructor: {instructor}')
+        print(f"Processing {dept} instructor: {instructor}")
 
         # INDIVIDUAL REPORT: Create a PDF report canvas for given instructor
-        individual_report = SimpleDocTemplate(f'DATA_Reports/{dept}/{email_name}-{dept}-{current_year}.pdf', pagesize=letter)
+        out_dir = myPath("DATA_Reports") / dept
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        individual_path = out_dir / f'{individual_email} ({dept}) {current_year}.pdf'
+        individual_report = SimpleDocTemplate(str(individual_path), pagesize=letter)
         individual_elements = []
-
-        # INDIVIDUAL REPORT: Add a section title with instructor name
-        styles = getSampleStyleSheet()
-        section_title = Paragraph(f'<font size=14>Instructor: {instructor} - {dept}</font>', styles["Heading1"])
-        individual_elements.append(section_title)
-        # INDIVIDUAL REPORT: Add email address
-        section_subtitle = Paragraph(f'Email: {individual_email}', style=getSampleStyleSheet()["Normal"])
-        individual_elements.append(section_subtitle)
-
-        # add a section title for SET questions
-        individual_elements.append(Paragraph('<font size=12>Evaluation of Teaching</font>', styles["Heading2"]))
-        individual_elements.append(Paragraph(eval_text))
-        individual_elements.append(Paragraph('<font size=12>SET Task Force Recommendations</font>', styles["Heading2"]))
-        individual_elements.append(Paragraph(set_text))
-        individual_elements.append(Paragraph('<font size=10>Questions</font>', styles["Heading3"]))
-        list_flowable = ListFlowable(
-            [
-                ListItem(Paragraph(item, style=getSampleStyleSheet()["Normal"]), bulletColor="black")
-                for item in question_description
-            ],
-            bulletType="bullet",
-            leftIndent=10,
-            spaceBefore=2,
-            spaceAfter=2,
-        )
-        individual_elements.append(list_flowable)
-        individual_elements.append(Paragraph('<font size=12>Disclaimer</font>', styles["Heading2"]))
-        individual_elements.append(Paragraph(note_text))
-        individual_elements.append(PageBreak())
 
         df_instructor_format = instructor_argos_df.copy()
         df_instructor_format[decimal_columns] = df_instructor_format[decimal_columns].round(2)
@@ -383,7 +419,12 @@ for dept in dept_list:
                     else:
                         df_instructor_report = pd.concat([df_instructor_report, df_instructor_pruned[report_columns]], ignore_index=True)
 
-                instructor_text_df = instructor_genai_df.loc[instructor_genai_df['Course'] == course] # Comments
+                try:
+                    instructor_genai_df
+                    instructor_text_df = instructor_genai_df.loc[instructor_genai_df['Course'] == course] # Comments
+                except NameError:
+                    print('No GENAI data available for this report.')
+                    instructor_text_df = pd.DataFrame()
                 if not instructor_text_df.empty:
                     for index, row in instructor_text_df.iterrows():
                         summary_text = str(row['Deanonymized']) if pd.notna(row['Deanonymized']) else ''
@@ -428,8 +469,7 @@ for dept in dept_list:
                 pass
             else:
                 # INDIVIDUAL REPORT: Add a subsection title with course level
-                subsubsection_title = Paragraph(f'<font size=12>{subtitle} - {instructor} - {dept}</font>', styles["Heading2"])
-                subsubsection_title.keepWithNext = True
+                subsubsection_title = Paragraph(f'<font size=12>{instructor} ({dept}) - {subtitle}</font>', styles["Heading2"])
                 individual_elements.append(subsubsection_title)
 
                 ###########################################################################################################
@@ -467,19 +507,11 @@ for dept in dept_list:
                 cmap = plt.get_cmap('Blues')
                 cmap2 = plt.get_cmap('Reds')
 
-                # Define proxy artists for the legend
-                legend_elements = [
-                    Patch(facecolor='none', edgecolor='dimgray', label='Max'),  # Bar for max range
-                    Patch(facecolor='none', edgecolor='black', label='Mean'),  # Bar for mean
-                    Patch(facecolor='lightgray', edgecolor='gray', label='Quantiles'),  # Bar for mean
-                ]
-
                 for row in df_plot.to_numpy(dtype=np.float64):
                     row_shift = (3 * (((row[0] // 100) - min_year) % 10) + ((row[0] % 100) // 10) - 1) / (2 + 3 * delta_year)
                     x_values = np.array([1, 2, 3, 4, 5, 6, 7]) + 0.8 * (row_shift - 0.5)
                     row_colors = cmap(norm(row_shift * np.ones(6)))
                     row_color2 = cmap2(norm(row_shift))
-                    row_size = 40 * int(np.sqrt(row[1]))
                     row_data = row[-7:-1]
                     ax1.bar([1, 2, 3, 4, 5, 6, 7], max_range, color='none', edgecolor='dimgray', linewidth=1.5, zorder=1)
                     ax1.bar([1, 2, 3, 4, 5, 6, 7], np_q75, color='lightgray', edgecolor='gray', linewidth=1, zorder=1)
@@ -489,7 +521,48 @@ for dept in dept_list:
                     ax1.scatter(x_values[:-1], row_data, s=50, c=row_colors, edgecolors='black', linewidths=1.0, zorder=4)
                     ax1.scatter(x_values[-1], row[-1], s=50, color=row_color2, edgecolors='black', linewidths=1.0, zorder=4)
                 ax1.tick_params(axis='both', labelsize=7)
-                ax1.legend(handles=legend_elements, fontsize=6, loc='upper left', title="Legend", title_fontsize=7)
+
+                # Legend 1: Bar and Line Meaning
+                legend_elements = [
+                    Line2D([0], [0], color='dimgray', linewidth=1.5, label='Max'),
+                    Line2D([0], [0], color="black", linewidth=1.5, label='Mean'),
+                    Line2D([0], [0], color='gray', linewidth=1, label='Quantiles')
+                ]
+
+                legend1 = ax1.legend(
+                    handles=legend_elements,
+                    fontsize=6,
+                    loc='upper left',
+                    title="Legend",
+                    title_fontsize=7,
+                    frameon=True
+                )
+                # Tell matplotlib this legend stays even when another legend is added
+                ax1.add_artist(legend1)
+
+                # Legend 2: Years and Color Scale
+                years = list(range(int(max_year), int(min_year) - 1, -1))
+                year_handles = []
+                for y in years:
+                    semester = y*100 + 31  # use 31 as the Fall semester
+                    t = (3 * (((semester // 100) - min_year) % 10) + ((semester % 100) // 10) - 1) / (2 + 3 * delta_year)
+                    year_handles.append(
+                        Line2D([0], [0], marker='o', linestyle='None',
+                               markersize=6,
+                               markerfacecolor=cmap(norm(t)),
+                               markeredgecolor='black',
+                               markeredgewidth=0.8,
+                               label=str(y)
+                               )
+                    )
+
+                legen2 = ax1.legend(
+                    handles=year_handles,
+                    fontsize=6,
+                    loc='upper right',
+                    title='Years',
+                    title_fontsize=7, frameon=True
+                )
 
                 # Adjust layout to prevent clipping
                 plt.tight_layout()
@@ -577,8 +650,8 @@ for dept in dept_list:
                 ax_main.set_title(f'Instructor SCH vs Weighted Scores for level {level}', fontsize=8)
                 # Create custom legend handles
                 legend_handles = [
-                    Patch(color='lightgray', alpha=1.0, label='All Instructors'),  # Gray for all instructors
-                    Patch(color=cmap2(0.8), alpha=1.0, label=instructor_df['FullName'].iloc[0])  # Highlight color for awards
+                    Patch(facecolor='lightgray', edgecolor='gray', label='All Instructors'),  # Gray for all instructors
+                    Patch(facecolor=cmap2(0.6), edgecolor='black', label=instructor)
                 ]
 
                 # Add legend
@@ -596,6 +669,9 @@ for dept in dept_list:
 
                 ###########################################################################################################
 
+                # Ensure there's room for heading + short text + at least some rows of the table
+                individual_elements.append(CondPageBreak(200))  # tune 160-300
+
                 individual_elements.append(Paragraph('<font size=10>Raw Data</font>', styles["Heading3"]))
                 raw_text =\
                     (f'The raw data is displayed in a condensed format. \
@@ -605,26 +681,53 @@ for dept in dept_list:
                 individual_elements.append(table)
 
                 if ai_flag:
-                    if any(len(s) > 20 for s in ai_list):
+                    # First, filter the list to get only the summaries we want to show.
+                    valid_ai_summaries = [s for s in ai_list if len(s) > 20]
+
+                    if valid_ai_summaries:
+                        # Before starting the AI section, ensure there's enough room for
+                        # the title and at least a few lines of text. If not, start a new page.
+                        individual_elements.append(CondPageBreak(100))
+
+                        # Add the title for the entire AI summary section
                         subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>",
                                                         styles["Heading3"])
                         individual_elements.append(subsubsection_title)
-                    for ai_text in ai_list:
-                        if len(ai_text) > 20:
-                            individual_elements.append(Paragraph(ai_text, styles["Normal"]))
 
+                        # Combine all individual summaries into ONE large string.
+                        # The <br/><br/> tag creates a nice visual separation (a blank line)
+                        # between each summary within the single paragraph block.
+                        full_ai_text = "<br/><br/>".join(valid_ai_summaries)
+
+                        # Now, add this single, large Paragraph object. ReportLab will
+                        # automatically handle splitting it across pages if it's too long.
+                        individual_elements.append(Paragraph(full_ai_text, ai_style))
+
+                # individual_elements.append(CondPageBreak(60))
                 individual_elements.append(PageBreak())
+                # if ai_flag:
+                #     if any(len(s) > 20 for s in ai_list):
+                #         individual_elements.append(CondPageBreak(150))
+                #         subsubsection_title = Paragraph(f"<font size=10>{subtitle} - AI Summary</font>",
+                #                                         styles["Heading3"])
+                #         individual_elements.append(subsubsection_title)
+                #     for ai_text in ai_list:
+                #         if len(ai_text) > 20:
+                #             individual_elements.append(Paragraph(ai_text, ai_style))
+                #
+                # individual_elements.append(CondPageBreak(60))
+                # individual_elements.append(PageBreak())
 
         dept_elements = dept_elements + individual_elements
         # Build individual reports
-        # individual_report.build(individual_elements)
+        individual_report.build(static_elements + individual_elements)
 
     # Build department report
     if faculty_flag:
         faculty_elements = faculty_elements + dept_elements
     else:
-        dept_report.build(dept_elements)
+        dept_report.build(static_elements + dept_elements)
 
 if faculty_flag:
-    faculty_report.build(faculty_elements)
+    faculty_report.build(static_elements + faculty_elements)
 
