@@ -21,7 +21,7 @@ Note: A VPN connection may be required to access the HelioCampus Dashboard from 
 
 from pathlib import Path
 import pandas as pd
-import re, html
+import re, html, sys
 
 
 ########################################################################################################################
@@ -186,13 +186,28 @@ dept_list = ['AERO', 'BAEN', 'BMEN', 'CHEN', 'CLEN', 'CSCE', 'CVEN', 'ECEN',
 college_id = 'EN'  # Engineering College ID
 base_path = 'OIEE_Evaluations_Raw'
 output_path = 'OIEE_Evaluations_Processed'
+
+# Ensure output directories exist
+Path(output_path).mkdir(parents=True, exist_ok=True)
+Path('ASSESSMENT_Processed').mkdir(parents=True, exist_ok=True)
+
 csv_evaluations_files = list(Path(base_path).glob(f'OIEE-Evaluations-{college_id}-*.csv'))
 
 # Initialize an empty DataFrame to store rows with missing email addresses
 missing_df = pd.DataFrame(columns=['INSTR_Instructor', 'LastName', 'FirstName', 'FullName', 'Email', 'Dept', 'Term'])
 
 # The NameBind binds the instructor fields to an email address
-NameBind_df = pd.read_csv('NAMES-Course-Bind.csv')
+try:
+    NameBind_df = pd.read_csv('NAMES-Course-Bind.csv')
+except FileNotFoundError:
+    print("Error: 'NAMES-Course-Bind.csv' not found. This file is required.")
+    sys.exit(1)
+except pd.errors.EmptyDataError:
+    print("Error: 'NAMES-Course-Bind.csv' is empty.")
+    sys.exit(1)
+except Exception as e:
+    print(f"Error reading 'NAMES-Course-Bind.csv': {e}")
+    sys.exit(1)
 
 # Loop through every EVALUATIONS input file into a dataframe, and append the dataframe to DataFrames list
 for file in csv_evaluations_files:
@@ -207,7 +222,17 @@ for file in csv_evaluations_files:
     print(f"Processing File: {file}")
 
     # These files have encoding='utf-16'.
-    oiee_df = pd.read_csv(file, encoding='utf-16', sep='\t')
+    try:
+        oiee_df = pd.read_csv(file, encoding='utf-16', sep='\t')
+    except FileNotFoundError:
+        print(f"Error: File '{file}' not found. Skipping.")
+        continue
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file}' is empty. Skipping.")
+        continue
+    except Exception as e:
+        print(f"Error reading '{file}': {e}. Skipping.")
+        continue
     print(f'Shape of original oiee_df: {oiee_df.shape}')
 
     # Rename entries in the first two rows to match column names
@@ -342,7 +367,12 @@ for file in csv_evaluations_files:
 
         # Display the final result
         print(f'Saving File: {output_file}')
-        term_df.to_csv(output_file, index=False)
+        try:
+            term_df.to_csv(output_file, index=False)
+        except PermissionError:
+            print(f"Error: Permission denied writing to '{output_file}'.")
+        except Exception as e:
+            print(f"Error writing '{output_file}': {e}")
 
         # Identify rows with missing email addresses
         missing_email_df = term_df[term_df['Email'].isna()]
@@ -351,10 +381,15 @@ for file in csv_evaluations_files:
         missing_email_df = missing_email_df.drop_duplicates()
         if not missing_email_df.empty:
             # Display the rows with missing email addresses
-            missing_email_df.rename(columns={'Dept': 'HomeDept'})
+            missing_email_df = missing_email_df.rename(columns={'Dept': 'HomeDept'})
             print(missing_email_df)
             # Append the rows with missing email addresses to the missing_df DataFrame
             missing_df = pd.concat([missing_df, missing_email_df], ignore_index=True)
 
 missing_df = missing_df.drop_duplicates()
-missing_df.to_csv('ASSESSMENT_Processed/missing_emails_oiee.csv', index=False)
+try:
+    missing_df.to_csv('ASSESSMENT_Processed/missing_emails_oiee.csv', index=False)
+except PermissionError:
+    print("Error: Permission denied writing to 'ASSESSMENT_Processed/missing_emails_oiee.csv'.")
+except Exception as e:
+    print(f"Error writing 'ASSESSMENT_Processed/missing_emails_oiee.csv': {e}")

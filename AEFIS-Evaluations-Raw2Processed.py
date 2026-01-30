@@ -23,15 +23,29 @@ Student Evaluation of Teaching Task Force.
 2022 COE SET Memo - AEFIS.pdf
 """
 
+from pathlib import Path
 import pandas as pd
-import glob
+import glob, sys
 
 ########################################################################################################################
 
 
 # The NameBind binds the instructor fields to an email address
-NameBind_df = pd.read_csv('NAMES-Course-Bind.csv')
+try:
+    NameBind_df = pd.read_csv('NAMES-Course-Bind.csv')
+except FileNotFoundError:
+    print("Error: 'NAMES-Course-Bind.csv' not found. This file is required.")
+    sys.exit(1)
+except pd.errors.EmptyDataError:
+    print("Error: 'NAMES-Course-Bind.csv' is empty.")
+    sys.exit(1)
+except Exception as e:
+    print(f"Error reading 'NAMES-Course-Bind.csv': {e}")
+    sys.exit(1)
 NameBind_merge_columns = ['LastName', 'FirstName', 'Dept', 'Instructor', 'FullName']
+
+# Ensure output directory for missing emails exists
+Path('ASSESSMENT_Processed').mkdir(parents=True, exist_ok=True)
 
 # List of standard AEFIS questions
 size = 14 # Number of questions + dummy question at index 0
@@ -126,6 +140,8 @@ missing_df = pd.DataFrame(columns=['Instructor', 'LastName', 'FirstName', 'FullN
 # The files in the directory 'AEFIS_Evaluations_Raw/' + dept + '/' are archived
 for dept in dept_list:
     print('Department: ' + dept)
+    # Ensure department output directory exists
+    Path(f'AEFIS_Evaluations_Processed/{dept}').mkdir(parents=True, exist_ok=True)
     # List all departmental CSV files in directory 'AEFIS_Evaluations_Raw/'
     csv_files = glob.glob('AEFIS_Evaluations_Raw/' + dept +'*.csv') # Process new files
     # UNCOMMENT BELOW to process archived files
@@ -134,7 +150,17 @@ for dept in dept_list:
     # Loop through every CSV input file into a dataframe and process them sequentially
     for file in csv_files:
         print('Processing File: ' + file)
-        data = pd.read_csv(file, header=None)
+        try:
+            data = pd.read_csv(file, header=None)
+        except FileNotFoundError:
+            print(f"Error: File '{file}' not found. Skipping.")
+            continue
+        except pd.errors.EmptyDataError:
+            print(f"Error: File '{file}' is empty. Skipping.")
+            continue
+        except Exception as e:
+            print(f"Error reading '{file}': {e}. Skipping.")
+            continue
 
         # Concatenate all the dataframes in DataFrames list into a single dataframe
         data = data.reset_index(drop=True)
@@ -196,8 +222,14 @@ for dept in dept_list:
             term_df = dfs[dfs['Term'] == term]
             # Reorder the rows by 'Code', 'Number', and 'Section'
             term_df = term_df.sort_values(by=['Code', 'Number', 'Section'])
-            print('Saving File: ' + 'AEFIS_Evaluations_Processed/' + dept + '/' + dept + '-' + str(term) + '_aefis.csv')
-            term_df.to_csv('AEFIS_Evaluations_Processed/' + dept + '/' + dept + '-' + str(term) + '_aefis.csv', index=False)
+            output_file = f'AEFIS_Evaluations_Processed/{dept}/{dept}-{term}_aefis.csv'
+            print(f'Saving File: {output_file}')
+            try:
+                term_df.to_csv(output_file, index=False)
+            except PermissionError:
+                print(f"Error: Permission denied writing to '{output_file}'.")
+            except Exception as e:
+                print(f"Error writing '{output_file}': {e}")
             # Uncomment to place files in the ASSESSMENT_Processed directory
             # term_df.to_csv('ASSESSMENT_Processed/' + dept + '/' + dept + '-' + str(term) + '_assessment.csv', index=False)
 
@@ -214,4 +246,9 @@ for dept in dept_list:
                 missing_df = pd.concat([missing_df, missing_email_df], ignore_index=True)
 
 missing_df = missing_df.drop_duplicates()
-missing_df.to_csv('ASSESSMENT_Processed/missing_emails_aefis.csv', index=False)
+try:
+    missing_df.to_csv('ASSESSMENT_Processed/missing_emails_aefis.csv', index=False)
+except PermissionError:
+    print("Error: Permission denied writing to 'ASSESSMENT_Processed/missing_emails_aefis.csv'.")
+except Exception as e:
+    print(f"Error writing 'ASSESSMENT_Processed/missing_emails_aefis.csv': {e}")
