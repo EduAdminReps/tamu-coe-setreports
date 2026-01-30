@@ -5,6 +5,7 @@ This script is designed to compute departmental statistics.
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import sys
 
 
 ###########################################################################################################
@@ -20,9 +21,16 @@ def load_csv(file_path):
         DataFrame: Loaded DataFrame or None if file does not exist.
     """
     if not file_path.exists():
-        print(f"File not found: {file_path}")
+        print(f"Error: File not found: {file_path}")
         return None
-    return pd.read_csv(file_path)
+    try:
+        return pd.read_csv(file_path)
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file_path}' is empty.")
+        return None
+    except Exception as e:
+        print(f"Error reading '{file_path}': {e}")
+        return None
 
 def load_and_concatenate_data(terms, base_path_template):
     """
@@ -72,7 +80,7 @@ def combine_stats(group, metrics):
         total_count = group[count_col].sum()
         if total_count == 0:
             # Handle zero total count
-            results[f"{metric['name']}_count"] <= 0
+            results[f"{metric['name']}_count"] = 0
             results[f"{metric['name']}_avg"] = np.nan
             results[f"{metric['name']}_stddev"] = np.nan
         else:
@@ -85,7 +93,6 @@ def combine_stats(group, metrics):
             )
             combined_stddev = np.sqrt(combined_variance)
             # Store results
-            combined_stddev = np.sqrt(combined_variance)
             results[metric['count_col']] = total_count
             results[metric['avg_col']] = weighted_avg
             results[metric['stddev_col']] = combined_stddev
@@ -168,6 +175,9 @@ college_id = 'EN'  # Engineering College ID
 base_path = 'DATA_Evaluations'
 output_path = 'DATA_DeptStats'
 
+# Ensure output directory exists
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
 # Load ASSESSMENT Data
 assessment_df = load_and_concatenate_data(Terms, base_path + f'/Data-{college_id}-{{term}}.csv')
 print(f'ASSESSMENT: {len(assessment_df)}')
@@ -189,8 +199,14 @@ if not assessment_df.empty:
     print(f'Number of rows in combined_stats is {len(combined_stats)}')
 
     # Save combined statistics to a CSV file
-    combined_stats.to_csv(f'DATA_DeptStats/{college_id}-departmental-statistics.csv', index=False)
-    print(f"Saved departmental statistics to DATA_DeptStats/{college_id}-departmental-statistics.csv")
+    stats_output_file = f'{output_path}/{college_id}-departmental-statistics.csv'
+    print(f"Saving File: {stats_output_file}")
+    try:
+        combined_stats.to_csv(stats_output_file, index=False)
+    except PermissionError:
+        print(f"Error: Permission denied writing to '{stats_output_file}'.")
+    except Exception as e:
+        print(f"Error writing '{stats_output_file}': {e}")
 
     # Compute quantiles for all departments, levels, and metrics
     metrics = ['Q3', 'Q4', 'Q5', 'Q7', 'Q8', 'Q9', 'GPA']
@@ -202,7 +218,13 @@ if not assessment_df.empty:
     ).copy()
     quantiles_df = compute_full_quantiles_dataframe(quantile_input, metrics)
 
-    quantiles_df.to_csv(f'DATA_DeptStats/{college_id}-quantiles.csv', index=False)
-    print(f"Saved quantiles to DATA_DeptStats/{college_id}-quantiles.csv")
+    quantiles_output_file = f'{output_path}/{college_id}-quantiles.csv'
+    print(f"Saving File: {quantiles_output_file}")
+    try:
+        quantiles_df.to_csv(quantiles_output_file, index=False)
+    except PermissionError:
+        print(f"Error: Permission denied writing to '{quantiles_output_file}'.")
+    except Exception as e:
+        print(f"Error writing '{quantiles_output_file}': {e}")
 else:
     print("No valid data to process.")

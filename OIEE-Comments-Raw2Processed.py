@@ -33,7 +33,7 @@ from pathlib import Path
 import pandas as pd
 from unidecode import unidecode
 import unicodedata
-import re, html
+import re, html, sys
 from rapidfuzz import fuzz
 
 
@@ -81,7 +81,7 @@ def anonymize_text(text, FullName):
     if len(name_parts) == 0:
         return text
     elif len(name_parts) == 1:
-        firtname = name_parts[0].lower()
+        firstname = name_parts[0].lower()
         lastname = ''
     else:
         firstname = name_parts[0].lower()
@@ -187,6 +187,10 @@ output_columns = [
 college_id = 'EN'  # Engineering College ID
 base_path = 'OIEE_Comments_Raw'
 output_path = 'OIEE_Comments_Processed'
+
+# Ensure output directory exists
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
 csv_comments_files = list(Path(base_path).glob(f'OIEE-Comments-{college_id}-*.csv'))
 
 # Loop through every COMMENTS input file into a dataframe, and append the dataframe to DataFrames list
@@ -202,7 +206,17 @@ for file in csv_comments_files:
     print(f'Processing File: {file}')
 
     # These files have encoding='utf-16'.
-    oiee_df = pd.read_csv(file, encoding='utf-16', sep='\t')
+    try:
+        oiee_df = pd.read_csv(file, encoding='utf-16', sep='\t')
+    except FileNotFoundError:
+        print(f"Error: File '{file}' not found. Skipping.")
+        continue
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file}' is empty. Skipping.")
+        continue
+    except Exception as e:
+        print(f"Error reading '{file}': {e}. Skipping.")
+        continue
     print(f'Shape of original oiee_df: {oiee_df.shape}')
 
     # Rename columns
@@ -293,4 +307,9 @@ for file in csv_comments_files:
 
     # Display the final result
     print(f'Saving File: {output_file}')
-    oiee_df.to_csv(output_file, index=False)
+    try:
+        oiee_df.to_csv(output_file, index=False)
+    except PermissionError:
+        print(f"Error: Permission denied writing to '{output_file}'.")
+    except Exception as e:
+        print(f"Error writing '{output_file}': {e}")

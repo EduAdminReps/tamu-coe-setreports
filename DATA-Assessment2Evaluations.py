@@ -12,15 +12,23 @@ The section information is unreliable and must be dropped.
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import sys
 
 
 ########################################################################################################################
 
 def load_csv(file_path):
     if not file_path.exists():
-        print(f"File not found: {file_path}")
+        print(f"Error: File not found: {file_path}")
         return None
-    return pd.read_csv(file_path)
+    try:
+        return pd.read_csv(file_path)
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file_path}' is empty.")
+        return None
+    except Exception as e:
+        print(f"Error reading '{file_path}': {e}")
+        return None
 
 
 # Define a function to calculate weighted average and combined stddev for multiple questions
@@ -81,7 +89,10 @@ new_column_dict = {'Subject': 'Code', 'Enrollment': 'Total'}
 college_id = 'EN'  # Engineering College ID
 argos_grades_path = 'ARGOS_Grades_Compressed'
 assessment_path = 'ASSESSMENT_Processed'
+output_path = 'DATA_Evaluations'
 
+# Ensure output directory exists
+Path(output_path).mkdir(parents=True, exist_ok=True)
 
 # assessment_frames = []
 for term in term_list:
@@ -176,5 +187,11 @@ for term in term_list:
     evaluation_df = evaluation_df.dropna(subset=['UIN'])
     print('DataFrame after empty UIN drop: evaluation_df of length ' + str(len(evaluation_df)))
     # evaluation_df.to_csv('DATA_Evaluations/' + dept + '_evaluation.csv', index=False)
-    evaluation_df.to_csv(f'DATA_Evaluations/Data-{college_id}-{term}.csv', index=False)
-    print(f'Saving File: DATA_Evaluations/Data-{college_id}-{term}.csv')
+    output_file = f'{output_path}/Data-{college_id}-{term}.csv'
+    print(f'Saving File: {output_file}')
+    try:
+        evaluation_df.to_csv(output_file, index=False)
+    except PermissionError:
+        print(f"Error: Permission denied writing to '{output_file}'.")
+    except Exception as e:
+        print(f"Error writing '{output_file}': {e}")

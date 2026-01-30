@@ -14,8 +14,9 @@ Input Columns:
 """
 
 
+from pathlib import Path
 import os
-import glob
+import glob, sys
 import pandas as pd
 import numpy as np
 
@@ -26,6 +27,10 @@ grade_points = {'A': 4.0, 'B': 3.0, 'C': 2.0, 'D': 1.0, 'F': 0.0}
 college_id = 'EN'  # Engineering College ID
 base_path = 'ARGOS_Grades_Raw'
 output_path = 'ARGOS_Grades_Compressed'
+
+# Ensure output directory exists
+Path(output_path).mkdir(parents=True, exist_ok=True)
+
 grade_files = glob.glob(os.path.join(base_path, f'ARGOS-Grades-{college_id}-*.csv'))
 
 # Group by relevant columns
@@ -54,7 +59,17 @@ for file in grade_files:
     print('Processing File: ' + file)
 
     # Read the CSV file into a DataFrame
-    grades_df = pd.read_csv(file)
+    try:
+        grades_df = pd.read_csv(file)
+    except FileNotFoundError:
+        print(f"Error: File '{file}' not found. Skipping.")
+        continue
+    except pd.errors.EmptyDataError:
+        print(f"Error: File '{file}' is empty. Skipping.")
+        continue
+    except Exception as e:
+        print(f"Error reading '{file}': {e}. Skipping.")
+        continue
     grades_df = grades_df.drop(columns=['CRN', 'Census', 'Enrollment'])
     print(f'grades_df size: {len(grades_df)}')
     # Filter rows where 'Primary' is 'Y'
@@ -81,7 +96,6 @@ for file in grade_files:
             InstructorCredits = np.minimum(np.minimum(row['Credits'], row['LectureMin']), 3)
         else:
             InstructorCredits = np.minimum(row['Credits'], 3)
-            type = row['Type']
         InstructorCredits_vals.append(InstructorCredits)
     grades_df['InstructorCredits'] = InstructorCredits_vals
     print(f'InstructorCredits_vals size: {len(InstructorCredits_vals)}')
@@ -137,4 +151,9 @@ for file in grade_files:
 
     # Display the final result
     print(f'Saving File: {output_file}')
-    results_df.to_csv(output_file, index=False)
+    try:
+        results_df.to_csv(output_file, index=False)
+    except PermissionError:
+        print(f"Error: Permission denied writing to '{output_file}'.")
+    except Exception as e:
+        print(f"Error writing '{output_file}': {e}")
