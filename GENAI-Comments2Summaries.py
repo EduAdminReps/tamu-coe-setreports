@@ -53,7 +53,7 @@ key_path = Path('GENAI_Credentials/genai_api_key.txt')
 with key_path.open('r') as f:
     key = f.read().strip()
 genai.configure(api_key=key)
-model_name = 'gemini-1.5-flash'
+model_name = 'gemini-2.5-flash'
 model = genai.GenerativeModel(model_name)
 lead_prompt = """
 The text below contains feedback received through student evaluation.
@@ -145,13 +145,28 @@ def map_course_level(course_level):
 
 ########################################################################################################################
 
+import time
+
+CHECKPOINT_SECONDS = 20 * 60   # 20 minutes
+
+def checkpoint_save(df, path, last_save_time):
+    now = time.time()
+    if now - last_save_time >= CHECKPOINT_SECONDS:
+        tmp = Path(str(path) + ".tmp")
+        df.to_csv(tmp, index=False)
+        tmp.replace(path)   # atomic replace
+        print(f"[checkpoint] {path}")
+        return now
+    return last_save_time
+
+########################################################################################################################
 
 # List desired CSV files in the directory
 college_id = 'EN'  # Engineering College ID
 base_path = 'OIEE_Comments_Processed'
 output_path = 'GENAI'
 
-term = '202511'
+term = '202531'
 csv_files = [
     Path(base_path) / f'OIEE-Comments-{college_id}-{term}_processed.csv',
 ]
@@ -171,31 +186,40 @@ for file in csv_files:
     print(f'Shape of original genai_df: {genai_df.shape}')
 
     # Create an empty list to store the processed results
-    ai_summary = []
     ai_count = 0
+    # Initialize check point variables
+    last_save = time.time()
+    checkpoint1 = Path(output_path) / f"GENAI-Checkpoint1-{college_id}-{term}.csv"
+    genai_df["Hierarchical"] = ""  # pre-create for partial writes
+    N = len(genai_df)
+
+    # Create a new column 'Hierarchical' to store the processed results
     # Iterate through the DataFrame and make API calls with a delay
-    for index, row in genai_df.iterrows():
+    # for index, row in genai_df.iterrows():
+    for i, (index, row) in enumerate(genai_df.iterrows(), start=1):
         anonymized = row['Anonymized']
+
+        if i % 10 == 0 or i == 1 or i == N:
+            print(f"[pass0] {i}/{N}, ai_calls={ai_count}")
+
         if isinstance(anonymized, str):
             if len(anonymized) < 1000:
-                ai_summary.append(anonymized)
+                ai_response = anonymized
             elif len(anonymized) < 5000:
                 ai_response = genai_single_summary(anonymized)
-                ai_summary.append(ai_response)
                 ai_count += 1
-                print('Excess')
+                print('Single Answer: Lengthy Response Summarized')
             else:
-                anonymized = anonymized[:5000]
-                ai_response = genai_single_summary(anonymized)
-                ai_summary.append(ai_response)
+                ai_response = genai_single_summary(anonymized[:5000])
                 ai_count += 1
-                print('Truncation')
+                print('Single Answer: Lengthy Response Truncated and Summarized')
         else:
+            ai_response = ""
             print(f"Anonymized is not a string: {anonymized}")
-            ai_summary.append('')
-    # Create a new column 'Hierarchical' to store the processed results
-    genai_df['Hierarchical'] = ai_summary
-    print(genai_df.columns)
+
+        genai_df.loc[index, "Hierarchical"] = ai_response
+        last_save = checkpoint_save(genai_df, checkpoint1, last_save)
+
     # print(genai_df[['OtherInstructor', 'Anonymized', 'CharCount']].head())
     genai_df.drop(columns=['OtherInstructor', 'Anonymized', 'CharCount'], inplace=True)
 
@@ -224,24 +248,32 @@ for file in csv_files:
     print('Max Char Count: ' + str(max(group1_df['CharCount'])))
     print('Number of Calls: ' + str(len(group1_df[group1_df['CharCount'] > 1200])))
 
-    # Create an empty list to store the processed results
-    ai_summary = []
-    # Iterate through the DataFrame and make API calls with a delay
-    for index, row in group1_df.iterrows():
-        grouped = row['Hierarchical']
-        if len(grouped) < 500:
-            ai_summary.append('')
-        elif len(grouped) < 48000:
-            ai_response = genai_single_summary(grouped)
-            ai_summary.append(ai_response)
-            ai_count += 1
-        else:
-            grouped = grouped[:48000]
-            ai_response = genai_single_summary(grouped)
-            ai_summary.append(ai_response)
-            ai_count += 1
     # Create a new column 'QuestionSummary' to store the processed results
-    group1_df['QuestionSummary'] = ai_summary
+    # Create an empty list to store the processed results
+    last_save = time.time()
+    checkpoint2 = Path(output_path) / f"GENAI-Checkpoint2-{college_id}-{term}.csv"
+    group1_df["QuestionSummary"] = ""
+    N1 = len(group1_df)
+    # Iterate through the DataFrame and make API calls with a delay
+    for i, (index, row) in enumerate(group1_df.iterrows(), start=1):
+        grouped = row['Hierarchical']
+
+        if i % 10 == 0 or i == 1 or i == N1:
+            print(f"[pass1] {i}/{N1}  ai_calls={ai_count}")
+
+        if len(grouped) < 500:
+            ai_response1 = ""
+        elif len(grouped) < 48000:
+            ai_response1 = genai_single_summary(grouped)
+            ai_count += 1
+            print('Individual Question: Responses Summarized')
+        else:
+            ai_response1 = genai_single_summary(grouped[:48000])
+            ai_count += 1
+            print('Individual Question: Responses Truncated and Summarized')
+
+        group1_df.loc[index, "QuestionSummary"] = ai_response1
+        last_save = checkpoint_save(group1_df, checkpoint2, last_save)
 
 
     ####################################################################################################################
@@ -265,33 +297,43 @@ for file in csv_files:
     print('Max CharCount: ' + str(max(group2_df['CharCount'])))
     print('Number of calls: ' + str(len(group2_df)))
 
-    # Create an empty list to store the processed results
-    ai_summary = []
-    # Iterate through the DataFrame and make API calls with a delay
-    for index, row in group2_df.iterrows():
-        analyzed = row['Hierarchical']
-        if analyzed == 'BLOCKED':
-            ai_summary.append('BLOCKED')
-        elif len(analyzed) < 200:
-            ai_summary.append('EXCEPTION - Insufficient feedback provided for meaningful summarization.')
-        elif len(analyzed) < 240000:
-            ai_response = genai_single_summary(analyzed)
-            ai_summary.append(ai_response)
-            ai_count += 1
-        else:
-            analyzed = analyzed[:240000]
-            ai_response = genai_single_summary(analyzed)
-            ai_summary.append(ai_response)
-            ai_count += 1
     # Create a new column 'processed' to store the processed results
-    group2_df['Gemini'] = ai_summary
+    # Create an empty list to store the processed results
+    last_save = time.time()
+    checkpoint3 = Path(output_path) / f"GENAI-Checkpoint3-{college_id}-{term}.csv"
+    group2_df["Gemini"] = ""
+    N2 = len(group2_df)
+    # Iterate through the DataFrame and make API calls with a delay
+    for i, (index, row) in enumerate(group2_df.iterrows(), start=1):
+        analyzed = row['Hierarchical']
+
+        # if i % 10 == 0 or i == 1 or i == N2:
+        print(f"[pass2] {i}/{N2}  ai_calls={ai_count}")
+
+        if analyzed == 'BLOCKED':
+            ai_response2 = "BLOCKED"
+        elif len(analyzed) < 200:
+            ai_response2 = "EXCEPTION - Insufficient feedback provided for meaningful summarization."
+            print('Course Evaluation: EXCEPTION - Insufficient feedback')
+        elif len(analyzed) < 240000:
+            ai_response2 = genai_single_summary(analyzed)
+            ai_count += 1
+            print('Course Evaluation: Summarized')
+        else:
+            ai_response2 = genai_single_summary(analyzed[:240000])
+            ai_count += 1
+            print('Course Evaluation: Truncated and Summarized')
+
+        group2_df.loc[index, "Gemini"] = ai_response2
+        last_save = checkpoint_save(group2_df, checkpoint3, last_save)
 
     # Apply function map_course_level to create column 'Level'
     group2_df['Level'] = group2_df['Number'].apply(map_course_level)
     group2_df['Model'] = model_name
 
-    for index, row in group2_df.iterrows():
-        group2_df['Deanonymized'] = group2_df.apply(lambda row: deanonymize_text(row['Gemini'], row.get('Instructor')), axis=1)
+    group2_df['Deanonymized'] = group2_df.apply(
+        lambda row: deanonymize_text(row['Gemini'], row.get('Instructor')), axis=1
+    )
 
     # Display the final result
     print(f"Number of AI calls: {ai_count}")
