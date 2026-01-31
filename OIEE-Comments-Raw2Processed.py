@@ -36,7 +36,7 @@ import unicodedata
 import re, html, sys
 from rapidfuzz import fuzz
 
-from config import COLLEGE_ID, QUESTION_NUMBERS, PATHS
+from config import COLLEGE_ID, QUESTIONS, QUESTION_NUMBERS, PATHS
 
 
 ########################################################################################################################
@@ -111,24 +111,8 @@ def anonymize_text(text, FullName):
 
 ########################################################################################################################
 
-# List of standard AEFIS questions
-size = 14 # Number of questions + dummy question at index 0
-initial_value = None
-questions = [initial_value] * size
-questions[0] = '' # Leading 0 is a dummy value
-questions[1] = 'Begin this course evaluation by reflecting on your own level of engagement and participation in the course. What portion of the class preparation activities (e.g., readings, online modules, videos) and assignments did you complete?'
-questions[2] = 'Based on what the instructor(s) communicated, and the information provided in the course syllabus, I understood what was expected of me.'
-questions[3] = 'This course helped me learn concepts or skills as stated in course objectives/outcomes.'
-questions[4] = 'In this course, I engaged in critical thinking and/or problem solving.'
-questions[5] = 'Please rate the organization of this course.'
-questions[6] = 'In this course, I learned to critically evaluate diverse ideas and perspectives.'
-questions[7] = 'Feedback in this course helped me learn. Please note, feedback can be either informal (e.g., in class discussion, chat boards, think-pair-share, office hour discussions, help sessions) or formal (e.g., written or clinical assessments, review of exams, peer reviews, clicker questions).'
-questions[8] = 'The instructor fostered an effective learning environment.'
-questions[9] = 'The instructor\'s teaching methods contributed to my learning.'
-questions[10] = 'The instructor encouraged students to take responsibility for their own learning.'
-questions[11] = 'Is this course required?'
-questions[12] = 'Expected Grade in this Course'
-questions[13] = 'Please provide any general comments about this course.'
+# Use centralized question text from config
+questions = QUESTIONS
 
 questions_dict = { questions[idx]: 'Q' + str(idx) for idx in range(0, 13) }
 questions_list = [f'Q{q}' for q in QUESTION_NUMBERS]  # Selected COE SET questions

@@ -23,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 import re, html, sys
 
-from config import COLLEGE_ID, DEPT_LIST, QUESTIONS_MAX, PATHS, map_course_level
+from config import COLLEGE_ID, DEPT_LIST, QUESTIONS, QUESTIONS_MAX, PATHS, map_course_level
 
 
 ########################################################################################################################
@@ -56,49 +56,9 @@ def normalize_string(s):
 
 ########################################################################################################################
 
-# List of standard OIEE questions (OIEE-specific text for parsing raw files)
-size = 14 # Number of questions + dummy question at index 0
-initial_value = None
-questions = [initial_value] * size
-questions[0] = '' # Leading 0 is a dummy value
-questions[1] = 'Begin this course evaluation by reflecting on your own level of engagement and participation in the course. What portion of the class preparation activities (e.g., readings, online modules, videos) and assignments did you complete?'
-# Scale (1 - 4) 1 = <50% 4 = >90%
-# Type: Multi-Choice, Single Answer
-questions[2] = 'Based on what the instructor(s) communicated, and the information provided in the course syllabus, I understood what was expected of me.'
-# Scale (1 - 3) 1 = No, I did not understand what was expected of me. 3 = Yes, I understood what was expected of me.
-# Type: Multi-Choice, Single Answer
-questions[3] = 'This course helped me learn concepts or skills as stated in course objectives/outcomes.'
-# Scale (1 - 4) 1 = This course did not help me learn the concepts or skills. 4 = This course definitely helped me learn the concepts or skills.
-# Type: Multi-Choice, Single Answer
-questions[4] = 'In this course, I engaged in critical thinking and/or problem solving.'
-# Scale (1 - 4) 1 = Never 4 = Frequently
-# Type: Multi-Choice, Single Answer
-questions[5] = 'Please rate the organization of this course.'
-# Scale (1 - 4) 1 = Not at all organized 4 = Very well organized
-# Type: Multi-Choice, Single Answer
-questions[6] = 'In this course, I learned to critically evaluate diverse ideas and perspectives.'
-# Scale (1 - 6) 1 = Strongly disagree 6 = Not Applicable
-# Type: Multi-Choice, Single Answer
-questions[7] = 'Feedback in this course helped me learn. Please note, feedback can be either informal (e.g., in class discussion, chat boards, think-pair-share, office hour discussions, help sessions) or formal (e.g., written or clinical assessments, review of exams, peer reviews, clicker questions).'
-# Scale (1 - 6) 1 = No feedback was provided. 6 = Feedback provided was extremely helpful.
-# Type: Multi-Choice, Single Answer
-questions[8] = 'The instructor fostered an effective learning environment.'
-# Scale (1 - 5) 1 = Strongly disagree 5 = Strongly agree
-# Type: Instructor Multi-Choice
-questions[9] = 'The instructor\'s teaching methods contributed to my learning.'
-# Scale (1 - 3) 1 = Did not contribute 3 = Contributed a lot
-# Type: Instructor Multi-Choice
-questions[10] = 'The instructor encouraged students to take responsibility for their own learning.'
-# Scale (1 - 3) 1 = Did not encourage 3 = Frequently encouraged
-# Type: Instructor Multi-Choice
-questions[11] = 'Is this course required?'
-# Scale (1 - 2) 1 = No 2 = Yes
-# Type: Multi-Choice, Single Answer
-questions[12] = 'Expected Grade in this Course'
-# Scale (1 - 8) 1 = A 8 = U
-# Type: Multi-Choice, Single Answer
-questions[13] = 'Please provide any general comments about this course.'
-questions_max = QUESTIONS_MAX  # Scale values from centralized config
+# Use centralized question text and scale values from config
+questions = QUESTIONS
+questions_max = QUESTIONS_MAX
 
 questions_dict = { questions[idx]: 'Q' + str(idx) for idx in range(0, 13) }
 
