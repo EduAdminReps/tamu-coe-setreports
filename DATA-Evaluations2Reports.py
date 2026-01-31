@@ -182,7 +182,7 @@ college_id = COLLEGE_ID
 question_num = QUESTION_NUMBERS
 
 # FLAGS
-ai_flag = True
+ai_flag = False
 
 # Ensure output directories exist
 myPath(PATHS['data_reports']).mkdir(parents=True, exist_ok=True)
@@ -280,16 +280,18 @@ report_columns_stylized = ['Course', 'Term'] + [VerticalText(i) for i in ['Enrol
 # The Promotion DataFrame
 # To get individual reports
 # Needs work
-faculty_flag = True
+faculty_flag = False
 if faculty_flag:
     faculty_uin = [000000000]
     faculty_report = SimpleDocTemplate(f"{PATHS['temp']}/{str(faculty_uin[0])}.pdf", pagesize=letter)
     faculty_elements = []
 
 if faculty_flag:
-    dept_list = argos_df.loc[argos_df['UIN'].isin(faculty_uin)]['Dept'].unique().tolist()
-# else:
-#     dept_list = argos_df['Dept'].unique().tolist()
+    # For faculty reports, use a single placeholder to ensure the loop runs exactly once
+    # The actual department logic is handled per-course inside the loop
+    dept_list = ['FACULTY']
+else:
+    dept_list = argos_df['Dept'].unique().tolist()
 
 static_elements = []
 # REPORT: Add a section title
@@ -329,7 +331,8 @@ for dept in dept_list:
     else:
         UIN_list = argos_df.loc[(argos_df['Dept'] == dept) & (argos_df['Term'].isin(term_instructor_list))]['UIN'].unique()
         # UIN_list = UIN_list[:5]
-    print(f'The number of instructors in {dept} is {len(UIN_list)}.')
+    num_instructors = len(UIN_list)
+    print(f'The number of instructors in {dept} is {num_instructors}.')
     # Iterate through the instructors
     for UIN in UIN_list:
         instructor_argos_df = argos_df.loc[argos_df['UIN'] == UIN].copy()
@@ -347,13 +350,21 @@ for dept in dept_list:
         else:
             instructor_genai_df = pd.DataFrame()
 
-        print(f"Processing {dept} instructor: {instructor}")
+        if faculty_flag:
+            print(f"Processing faculty report for: {instructor}")
+        else:
+            print(f"Processing {dept} instructor: {instructor}")
 
         # INDIVIDUAL REPORT: Create a PDF report canvas for given instructor
-        out_dir = myPath(PATHS['data_reports']) / dept
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        individual_path = out_dir / f'{individual_email} ({dept}) {current_year}.pdf'
+        if faculty_flag:
+            # Faculty reports go to main reports directory without dept subfolder
+            out_dir = myPath(PATHS['data_reports'])
+            out_dir.mkdir(parents=True, exist_ok=True)
+            individual_path = out_dir / f'{individual_email} {current_year}.pdf'
+        else:
+            out_dir = myPath(PATHS['data_reports']) / dept
+            out_dir.mkdir(parents=True, exist_ok=True)
+            individual_path = out_dir / f'{individual_email} ({dept}) {current_year}.pdf'
         individual_report = SimpleDocTemplate(str(individual_path), pagesize=letter)
         individual_elements = []
 
@@ -364,15 +375,19 @@ for dept in dept_list:
         df_instructor_format['Course'] = df_instructor_format['Code'] + ' ' + df_instructor_format['Number'].astype(str)
 
         for level in ['one', 'two', 'three', 'four', 'grad']:
-            # course_list = sorted(set(df_instructor_format[df_instructor_format['Level'] == level]['Course'].tolist()))
-            course_list = sorted(
-                set(
-                    df_instructor_format[
-                        (df_instructor_format['Level'] == level) &
-                        (df_instructor_format['Dept'] == dept)
-                        ]['Course'].tolist()
-                )
-            )
+            # Show ALL courses at this level for the instructor (cross-department visibility)
+            # The department filter only determines WHICH instructors are in the report,
+            # not which courses are shown for each instructor
+            level_df_for_courses = df_instructor_format[df_instructor_format['Level'] == level]
+            course_list = sorted(set(level_df_for_courses['Course'].tolist()))
+
+            # Determine the representative department for this level's visualizations
+            # (uses first course's department for comparison statistics)
+            if not level_df_for_courses.empty:
+                level_viz_dept = level_df_for_courses['Dept'].iloc[0]
+            else:
+                level_viz_dept = dept
+
             if course_list:  # Check if the list is not empty (most Pythonic way)
                 print(f"Level {level}: {course_list}")
             subtitle = 'Course Level ' + level_dict[level]
@@ -389,11 +404,13 @@ for dept in dept_list:
                 # for term in set(df_instructor_format.loc[df_instructor_format['Course'] == course, 'Term'].tolist()):
                 df_instructor_pruned = df_instructor_format.loc[(df_instructor_format['Course'] == course)]
                 df_instructor_pruned = df_instructor_pruned.sort_values(by='Term', ascending=True)
-                df_compare = dept_stats_df.loc[dept_stats_df['Dept'] == dept]
+                # Use the course's department for comparison statistics
+                course_dept = df_instructor_pruned['Dept'].iloc[0]
+                df_compare = dept_stats_df.loc[dept_stats_df['Dept'] == course_dept]
                 if not df_compare.empty:
                     level_avg_row = df_compare.loc[df_compare['Level'] == level].copy()
                     level_avg_row[decimal_columns] = level_avg_row[decimal_columns].round(2)
-                    level_avg_row['Course'] = str(dept) + ' ' + level_dict[level]
+                    level_avg_row['Course'] = str(course_dept) + ' ' + level_dict[level]
                     level_avg_row['Term'] = 'all'
                     level_avg_row['Enrollment'] = ''
                     level_avg_row['Responses'] = ''
@@ -456,7 +473,8 @@ for dept in dept_list:
                 pass
             else:
                 # INDIVIDUAL REPORT: Add a subsection title with course level
-                subsubsection_title = Paragraph(f'<font size=12>{instructor} ({dept}) - {subtitle}</font>', styles["Heading2"])
+                # Use level_viz_dept to show the relevant department for this level's courses
+                subsubsection_title = Paragraph(f'<font size=12>{instructor} ({level_viz_dept}) - {subtitle}</font>', styles["Heading2"])
                 individual_elements.append(subsubsection_title)
 
                 ###########################################################################################################
@@ -479,7 +497,7 @@ for dept in dept_list:
                 ax1.minorticks_on()  # Enable minor ticks
                 ax1.grid(True, which='minor', linestyle=':', linewidth=0.5, color='lightgray', zorder=2)  # Minor gridlines
 
-                quantiles_row = quantiles_df.loc[(quantiles_df['Level'] == level) & (quantiles_df['Dept'] == dept)]
+                quantiles_row = quantiles_df.loc[(quantiles_df['Level'] == level) & (quantiles_df['Dept'] == level_viz_dept)]
                 np_q25 = quantiles_row[['Q3_q25', 'Q4_q25', 'Q5_q25', 'Q7_q25', 'Q8_q25', 'Q9_q25', 'GPA_q25']].to_numpy(dtype=np.float64).flatten()
                 np_q75 = quantiles_row[['Q3_q75', 'Q4_q75', 'Q5_q75', 'Q7_q75', 'Q8_q75', 'Q9_q75', 'GPA_q75']].to_numpy(dtype=np.float64).flatten()
 
@@ -574,8 +592,10 @@ for dept in dept_list:
 
                 ###########################################################################################################
 
-                level_df = argos_df[(argos_df['Level'] == level) & (argos_df['Dept'] == dept)]
+                level_df = argos_df[(argos_df['Level'] == level) & (argos_df['Dept'] == level_viz_dept)]
                 instructor_df = level_df[level_df['UIN'] == UIN]
+                # For instructor's data (all their courses at this level, ANY department)
+                # instructor_df = argos_df[(argos_df['Level'] == level) & (argos_df['UIN'] == UIN)]
 
                 # Plot data
                 my_other_fig, ax_main = plt.subplots(figsize=(4.58, 3))
